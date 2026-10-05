@@ -8,7 +8,9 @@ local Rng = require("core.rng")
 
 local M = {}
 
-local sunMesh, moonMesh, starsMesh, cloudMesh, cloudImage
+local sunMesh, moonMesh, starsMesh, cloudMesh, cloudImage, glowMesh
+local GLOW_SEG = 24
+local glowVerts = {}
 local rot, tmp, viewRot = mat4.new(), mat4.new(), mat4.new()
 
 local function lerp(a, b, t) return a + (b - a) * t end
@@ -84,6 +86,10 @@ function M.load()
   end
   starsMesh = love.graphics.newMesh(format, verts, "triangles", "static")
   starsMesh:setTexture(white)
+  -- poświata zachodu: wachlarz przy horyzoncie od strony słońca
+  for i = 1, GLOW_SEG * 9 do glowVerts[i] = { 0, 0, 0, 0.5, 0.5, 1, 1, 1, 0 } end
+  glowMesh = love.graphics.newMesh(format, glowVerts, "triangles", "stream")
+  glowMesh:setTexture(white)
 
   -- chmury: tekstura z szumu, kafelkowana
   local nrng = Rng.new(777)
@@ -130,7 +136,7 @@ function M.colors(game, camY)
   end
   -- czerwień zachodu/wschodu
   local sunset
-  local c = math.cos(t * math.pi * 2)
+  local c = math.cos((t - 0.25) * math.pi * 2) -- 1 w południe, 0 o wschodzie i zachodzie
   if c > -0.4 and c < 0.4 then
     local f = (1 - math.abs(c) / 0.4)
     sunset = { 1, 0.45 + f * 0.25, 0.25, f * f * 0.6 }
@@ -170,6 +176,39 @@ function M.drawCelestial(game, camera, alpha)
   mat4.multiply(tmp, rot, tmp)
   s:send("u_model", "row", tmp)
   g.draw(moonMesh)
+  local _, _, sunset = M.colors(game, 100)
+  if sunset and vis > 0 then
+    -- słońce wschodzi na +X, zachodzi na -X
+    local sx = math.cos(angle * math.pi * 2) > 0 and 1 or -1
+    local r, gg, b, a = sunset[1], sunset[2], sunset[3], sunset[4] * vis
+    local k = 0
+    local function put(px, py, pa)
+      k = k + 1
+      local v = glowVerts[k]
+      v[1], v[2], v[3], v[6], v[7], v[8], v[9] = sx * 90, py, px, r, gg, b, pa
+    end
+    -- środek -> pierścień wewnętrzny -> zewnętrzny (miękkie wygaszanie)
+    for i = 0, GLOW_SEG - 1 do
+      local a1, a2 = i / GLOW_SEG * math.pi * 2, (i + 1) / GLOW_SEG * math.pi * 2
+      local c1, s1, c2, s2 = math.cos(a1), math.sin(a1), math.cos(a2), math.sin(a2)
+      put(0, 6, a)
+      put(c1 * 60, 6 + s1 * 16, a * 0.45)
+      put(c2 * 60, 6 + s2 * 16, a * 0.45)
+      put(c1 * 60, 6 + s1 * 16, a * 0.45)
+      put(c1 * 140, 6 + s1 * 38, 0)
+      put(c2 * 140, 6 + s2 * 38, 0)
+      put(c1 * 60, 6 + s1 * 16, a * 0.45)
+      put(c2 * 140, 6 + s2 * 38, 0)
+      put(c2 * 60, 6 + s2 * 16, a * 0.45)
+    end
+    glowMesh:setVertices(glowVerts)
+    g.setBlendMode("alpha")
+    g.setColor(1, 1, 1, 1)
+    mat4.identity(tmp)
+    s:send("u_model", "row", tmp)
+    g.draw(glowMesh)
+    g.setBlendMode("add")
+  end
   local night = 1 - (game:daylight() - 0.2) / 0.8
   local starA = math.max(0, night * 1.4 - 0.4) * vis
   if starA > 0 then
