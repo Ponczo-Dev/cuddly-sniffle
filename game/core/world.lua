@@ -46,6 +46,7 @@ function M.new(opts)
   self.loader = opts.loader
   self.lighting = opts.lighting
   self.onUnload = opts.onUnload
+  self.onCreate = opts.onCreate
   self.chunks = {}
   self.chunkCount = 0
   self.listeners = {}   -- obiekty z metodą onBlockChanged(world, x, y, z, oldId, newId)
@@ -79,6 +80,7 @@ end
 -- Tworzy chunk: wczytuje z dysku albo generuje
 function World:createChunk(cx, cz)
   local chunk = self.loader and self.loader(cx, cz)
+  local fromDisk = chunk ~= nil
   if not chunk then
     chunk = Chunk.new(cx, cz)
     if self.generator then
@@ -88,7 +90,9 @@ function World:createChunk(cx, cz)
   end
   chunk.generated = true
   chunk.dirty = true
-  return self:addChunk(chunk)
+  self:addChunk(chunk)
+  if self.onCreate then self.onCreate(chunk, fromDisk) end
+  return chunk
 end
 
 function World:removeChunk(cx, cz)

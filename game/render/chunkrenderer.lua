@@ -93,7 +93,12 @@ end
 
 local sortList = {}
 
+-- Rysuje bloki nieprzezroczyste; wodę zbiera do późniejszego drawTranslucent
 function Renderer:draw(camera, daylight, fogColor, fogStart, fogEnd)
+  self:drawOpaque(camera, daylight)
+end
+
+function Renderer:drawOpaque(camera, daylight)
   local g = love.graphics
   local f = camera.frustum
   local s = shader.chunk
@@ -125,8 +130,17 @@ function Renderer:draw(camera, daylight, fogColor, fogStart, fogEnd)
     end
   end
 
-  -- woda i lód: od najdalszych, z mieszaniem, bez zapisu głębi
   g.setBlendMode("alpha")
+  self.stats.drawn, self.stats.total, self.stats.vertices = drawn, total, verts
+end
+
+-- Woda i lód: od najdalszych, z mieszaniem, bez zapisu głębi
+function Renderer:drawTranslucent(camera, daylight)
+  local g = love.graphics
+  local s = shader.chunk
+  g.setShader(s)
+  s:send("u_daylight", daylight)
+  g.setColor(1, 1, 1, 1)
   if #sortList > 0 then
     table.sort(sortList, function(a, b) return a._dist > b._dist end)
     s:send("u_alphaCut", 0.01)
@@ -141,7 +155,6 @@ function Renderer:draw(camera, daylight, fogColor, fogStart, fogEnd)
 
   g.setDepthMode("lequal", true)
   g.setMeshCullMode("back")
-  self.stats.drawn, self.stats.total, self.stats.vertices = drawn, total, verts
 end
 
 function Renderer:clear()

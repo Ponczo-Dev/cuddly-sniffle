@@ -20,6 +20,7 @@ local files = {
   "test_strict",
   "test_states",
   "test_world",
+  "test_gameplay",
 }
 
 local jit = rawget(_G, "jit")
