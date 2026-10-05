@@ -11,6 +11,7 @@
 local Noise = require("core.noise")
 local Rng = require("core.rng")
 local trees = require("core.trees")
+local structures = require("core.structures")
 
 local M = {}
 
@@ -474,10 +475,13 @@ function Gen:generate(chunk)
   self:carveRavines(chunk)
   placeOres(chunk, rng)
   if rng:chance(0.25) then tryDungeon(self, chunk, rng) end
+  structures.applyUnderground(self, chunk)
 
   -- powierzchnia po wycięciu jaskiń: lód, śnieg i roślinność
   chunk:recalcHeights()
   self:decorate(chunk, rng, heights, biomes)
+  structures.applySurface(self, chunk)
+  chunk:recalcHeights()
 end
 
 -- ---------------------------------------------------------------------------

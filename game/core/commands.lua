@@ -33,7 +33,7 @@ local HELP = {
   "/tp <x> <y> <z>, /spawnpoint, /seed, /kill, /heal, /clear",
   "/weather clear|rain|thunder, /difficulty 0-3",
   "/summon <pig|cow|sheep|chicken|wolf|zombie|skeleton|spider|creeper|enderman>",
-  "/xp <ilosc>",
+  "/xp <ilosc>, /locate village|mineshaft",
 }
 
 function M.run(game, text)
@@ -119,6 +119,18 @@ function M.run(game, text)
     if not n then return "Uzycie: /xp <ilosc>" end
     game:addXp(n)
     return "Dodano " .. n .. " punktow doswiadczenia"
+  elseif cmd == "locate" then
+    local structures = require("core.structures")
+    if not game.gen then return "Tu nie ma struktur" end
+    local what = args[2] or "village"
+    local pcx, pcz = math.floor(p.x / 16), math.floor(p.z / 16)
+    local pos
+    if what == "village" or what == "wioska" then pos = structures.findVillage(game.gen, pcx, pcz, 60)
+    elseif what == "mineshaft" or what == "kopalnia" then pos = structures.findMineshaft(game.gen, pcx, pcz, 40)
+    else return "Uzycie: /locate village|mineshaft" end
+    if not pos then return "Nie znaleziono w poblizu" end
+    return string.format("Najblizej: x=%d z=%d (odleglosc %d)", pos[1], pos[2],
+      math.floor(math.sqrt((pos[1] - p.x) ^ 2 + (pos[2] - p.z) ^ 2)))
   elseif cmd == "spawnpoint" then
     game.spawnX, game.spawnY, game.spawnZ = p.x, p.y, p.z
     game.worldSpawnX, game.worldSpawnY, game.worldSpawnZ = p.x, p.y, p.z

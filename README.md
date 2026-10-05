@@ -5,7 +5,7 @@ Klon Minecrafta w stylu Java Edition Beta 1.0–1.8, napisany w Lua na framework
 Wszystkie tekstury, modele i dźwięki są generowane w kodzie, więc nie potrzeba żadnych plików graficznych.
 Plan projektu i zasady pracy z AI są w [`MASTER_PROMPT.md`](MASTER_PROMPT.md).
 
-**Stan: fazy 0–10 z planu ukończone.**
+**Stan: fazy 0–10 z planu ukończone + rozszerzenia: redstone i tłoki, tory i wagoniki, łódki, płotki, Nether z portalem, opuszczone kopalnie i wioski.**
 
 ## Instalacja (jednorazowo, bez admina)
 
@@ -77,15 +77,26 @@ przeciąganie ze stosem (rozłożenie po slotach), Q nad slotem (wyrzuć), 1–9
 - **Tryby:** przetrwanie, kreatywny (latanie, wszystkie bloki), hardcore.
 - **Menu:** lista światów, tworzenie świata (nazwa, ziarno, tryb), usuwanie, opcje (zasięg widzenia,
   pole widzenia, czułość, głośność, skala GUI, trudność), autozapis co minutę.
+- **Redstone (Beta 1.7):** przewód (moc 0–15), pochodnia redstone (negacja), dźwignia, przycisk,
+  płyta naciskowa, przekaźnik (opóźnienie 1–4, PPM zmienia), lampa. Sterowane mechanizmy: drzwi, TNT,
+  tłok i lepki tłok (pcha do 12 bloków).
+- **Transport:** tory (łączą się same, zakręty, wzniesienia), tory zasilane i z czujnikiem, wagonik
+  (PPM wsiadasz, W popychasz, shift wysiadasz), łódka (W/S/A/D na wodzie).
+- **Nether:** portal z obsydianu (rama 4×5, wnętrze 2×3) zapalany krzesiwem. Po drugiej stronie
+  netherrack, morze lawy, jasnogłaz, piasek dusz, ghasty z kulami ognia i zombie pigmeni.
+  1 blok w Netherze = 8 bloków w świecie.
+- **Struktury:** lochy ze spawnerem, opuszczone kopalnie (korytarze, podpory, tory, pajęczyny, skrzynie),
+  wioski (puste jak w Beta 1.8: studnia, drogi, domy, kuźnia ze skrzynią, pola, biblioteka, wieża).
+  Komenda `/locate village` albo `/locate mineshaft` pokazuje najbliższą.
 - **Dźwięki:** kopanie i kroki zależne od materiału, głosy mobów, wybuchy, deszcz. Wszystkie wygenerowane w kodzie.
 
 ## Komendy czatu
 
 `/help`, `/time set day|night|<liczba>`, `/gamemode survival|creative`, `/give <nazwa|id> [ilość]`,
 `/tp <x> <y> <z>`, `/weather clear|rain|thunder`, `/summon <mob>`, `/difficulty 0-3`,
-`/xp <ilość>`, `/seed`, `/kill`, `/heal`, `/clear`, `/spawnpoint`.
+`/xp <ilość>`, `/locate village|mineshaft`, `/seed`, `/kill`, `/heal`, `/clear`, `/spawnpoint`.
 
-Przykład: `/give diamond_pickaxe`, `/give torch 64`, `/summon creeper`.
+Przykład: `/give diamond_pickaxe`, `/give torch 64`, `/summon creeper`, `/give piston 4`, `/give rail 64`, `/give obsidian 10`, `/give flint_and_steel`.
 
 ## Parametry uruchomienia (do testów)
 
@@ -121,6 +132,8 @@ game\
     mesher.lua           bloki -> trójkąty (culling, AO, płynne światło)
     blocks.lua items.lua recipes.lua   rejestry bloków, przedmiotów i receptur
     blocklogic.lua       zachowania bloków (ciecze, rośliny, drzwi, łóżka...)
+    redstone.lua rails.lua vehicles.lua   redstone i tłoki, tory, wagonik i łódka
+    nethergen.lua portal.lua structures.lua   Nether, portal, kopalnie i wioski
     player.lua physics.lua raycast.lua   ruch i kolizje
     survival.lua mobs.lua entities.lua   zdrowie/głód, moby, byty, wybuchy
     inventory.lua container.lua furnace.lua   ekwipunek i okna
