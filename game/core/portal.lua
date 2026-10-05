@@ -7,6 +7,7 @@
 local P = {}
 
 local OBSIDIAN, PORTAL, AIR, FIRE = 49, 90, 0, 51
+local floor = math.floor
 
 -- Sprawdza ramę dla wnętrza zaczynającego się w (x0, y0, z0) wzdłuż osi
 -- axis (0 = X, 1 = Z). Zwraca true, jeśli rama jest kompletna i wnętrze puste.
@@ -164,25 +165,39 @@ function P.tick(game)
   end
 end
 
-function P.travel(game)
-  if game.net then
-    game:emit("message", "Portale nie dzialaja w grze wieloosobowej")
-    return false
-  end
-  local p = game.player
-  local toNether = game.dimension ~= "nether"
+-- Cel podróży z wymiaru from: wymiar docelowy i kolumna (skala 1:8)
+function P.target(from, x, z)
+  local toNether = from ~= "nether"
   local scale = toNether and 1 / 8 or 8
-  local tx, tz = math.floor(p.x * scale), math.floor(p.z * scale)
-  local target = toNether and "nether" or "overworld"
-  game:changeDimension(target, tx + 0.5, 70, tz + 0.5)
+  return toNether and "nether" or "overworld", floor(x * scale), floor(z * scale)
+end
+
+-- Portal po drugiej stronie: istniejący w pobliżu albo nowy. game.world musi
+-- już być światem docelowym. Zwraca pozycję stóp gracza.
+function P.arrive(game, tx, tz)
   local world = game.world
+  local toNether = game.dimension == "nether"
+  world:updateLoading(floor(tx / 16), floor(tz / 16), 1, 1000)
   local found = findPortal(world, tx, tz, 16)
   if not found then found = buildPortal(world, tx, tz, toNether) end
-  p.x, p.y, p.z = found[1] + 0.5, found[2], found[3] + 0.5
+  return found[1] + 0.5, found[2], found[3] + 0.5
+end
+
+function P.travel(game)
+  -- gość: podróż liczy gospodarz (on ma prawdziwe światy)
+  if game.netClient then
+    game.netClient:requestTravel("nether")
+    return true
+  end
+  local p = game.player
+  local target, tx, tz = P.target(game.dimension, p.x, p.z)
+  game:changeDimension(target, tx + 0.5, 70, tz + 0.5)
+  p.x, p.y, p.z = P.arrive(game, tx, tz)
   p.prevX, p.prevY, p.prevZ = p.x, p.y, p.z
   p.vx, p.vy, p.vz = 0, 0, 0
   p.fallDistance = 0
   game:emit("sound", "teleport", p.x, p.y, p.z)
+  return true
 end
 
 return P

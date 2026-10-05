@@ -141,7 +141,12 @@ strzały, TNT, czat, wspólna pora dnia i pogoda, nicki nad głowami, komenda `/
 Ekwipunek gościa jest zapisywany w świecie gospodarza i wraca przy następnej wizycie.
 Gdy ktoś jest połączony, menu pauzy nie zatrzymuje gry.
 
-Ograniczenia: portale do Netheru są wyłączone w grze sieciowej, goście nie mogą spać, jeździć
+Portale do Netheru i Endu działają też w grze sieciowej, a każdy gracz może być w innym wymiarze
+(jeden w Netherze, drugi w zwykłym świecie). Gospodarz albo serwer trzyma wtedy kilka wymiarów naraz.
+Gość, który zginie w Netherze, odradza się w zwykłym świecie, a po ponownym wejściu na serwer
+wraca do wymiaru, w którym był.
+
+Ograniczenia: goście nie mogą spać, jeździć
 wagonikiem ani łódką, karmić ani strzyc zwierząt. Komendy `/time`, `/weather`, `/summon`,
 `/difficulty` działają tylko u gospodarza.
 

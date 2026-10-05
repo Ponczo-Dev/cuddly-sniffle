@@ -125,6 +125,127 @@ suite:test("bloki: lozko i drzwi goscia nie niszcza sie u gospodarza", function(
   T.eq(bed, 2, "lozko zostalo u goscia")
 end)
 
+suite:test("portal: gosc idzie do Netheru, gospodarz zostaje w swiecie", function()
+  local host, srv, cl = setup()
+  run(host, srv, cl, 40)
+  local g = cl.game
+  -- rama portalu u gospodarza (dociera też do gościa)
+  local w = host.world
+  for x = 3, 6 do w:setBlock(x, 64, 8, 49, 0); w:setBlock(x, 68, 8, 49, 0) end
+  for y = 65, 67 do w:setBlock(3, y, 8, 49, 0); w:setBlock(6, y, 8, 49, 0) end
+  T.truthy(require("core.portal").tryLight(host, 4, 65, 8), "portal zapalony")
+  run(host, srv, cl, 3)
+  T.eq(g.world:getBlock(4, 65, 8), 90, "portal u goscia")
+  -- gość wchodzi w portal i czeka
+  local p = g.player
+  p.x, p.y, p.z = 4.9, 65, 8.5
+  p.prevX, p.prevY, p.prevZ = p.x, p.y, p.z
+  for _ = 1, 120 do
+    step(host, srv, cl)
+    if g.dimension == "nether" then break end
+  end
+  T.eq(g.dimension, "nether", "gosc w Netherze")
+  T.eq(host.dimension, "overworld", "gospodarz zostal w swiecie")
+  local ctx = next(srv.peers) and select(2, next(srv.peers))
+  T.eq(ctx.dim, "nether", "serwer wie, ze gosc jest w Netherze")
+  run(host, srv, cl, 60)
+  -- teren Netheru dotarł do gościa, gość stoi w portalu powrotnym
+  local bx, by, bz = math.floor(p.x), math.floor(p.y), math.floor(p.z)
+  T.truthy(g.world:isLoadedAt(bx, bz), "chunki Netheru u goscia")
+  T.eq(g.world:getBlock(bx, by, bz), 90, "gosc stoi w portalu powrotnym")
+  T.eq(host.worlds.nether:getBlock(bx, by, bz), 90, "portal powrotny u gospodarza")
+  local nether = 0
+  for y = 1, 120 do if g.world:getBlock(bx + 8, y, bz + 8) == 87 then nether = nether + 1 end end
+  T.truthy(nether > 0, "netherrack u goscia")
+  -- blok postawiony w Netherze trafia do Netheru gospodarza, nie do świata
+  cl.recording = true
+  g:setBlock(bx + 2, by + 3, bz, 4, 0)
+  cl.recording = false
+  run(host, srv, cl, 3)
+  T.eq(host.worlds.nether:getBlock(bx + 2, by + 3, bz), 4, "bruk w Netherze gospodarza")
+  T.truthy(host.world:getBlock(bx + 2, by + 3, bz) ~= 4, "swiat gospodarza bez zmian")
+  -- gospodarz w świecie nadal gra normalnie (świat żyje, gość go nie widzi)
+  host:setBlock(10, 64, 10, 4, 0)
+  run(host, srv, cl, 3)
+  T.truthy(g.world:getBlock(10, 64, 10) ~= 4, "zmiana w swiecie nie trafia do Netheru goscia")
+  -- powrót tym samym portalem
+  g.portalCooldown = 0
+  for _ = 1, 140 do
+    step(host, srv, cl)
+    if g.dimension == "overworld" then break end
+  end
+  T.eq(g.dimension, "overworld", "gosc wrocil")
+  T.eq(ctx.dim, "overworld")
+  run(host, srv, cl, 40)
+  T.truthy(math.abs(g.player.x - 4.9) < 6 and math.abs(g.player.z - 8.5) < 6, "obok portalu startowego")
+  T.eq(g.world:getBlock(10, 64, 10), 4, "teraz widzi zmiane gospodarza")
+end)
+
+suite:test("portal: gospodarz w Netherze, gosc w swiecie dalej gra", function()
+  local host, srv, cl = setup()
+  run(host, srv, cl, 40)
+  local g = cl.game
+  host.player.gameMode = "creative"
+  require("core.portal").travel(host)
+  host.portalCooldown = 100 -- jak po przejściu w tick (stoi w portalu powrotnym)
+  T.eq(host.dimension, "nether", "gospodarz w Netherze")
+  run(host, srv, cl, 5)
+  T.eq(host.dimension, "nether", "gospodarz zostal w Netherze")
+  -- gość stawia blok w świecie: trafia do świata gospodarza
+  cl.recording = true
+  g:setBlock(6, 64, 6, 4, 0)
+  cl.recording = false
+  run(host, srv, cl, 3)
+  T.eq(host.worlds.overworld:getBlock(6, 64, 6), 4, "bruk w swiecie, choc gospodarz w Netherze")
+  -- świat gościa żyje: woda płynie
+  host:withDimension("overworld", function() host:setBlock(9, 64, 9, 8, 0) end)
+  run(host, srv, cl, 30)
+  T.truthy(host.worlds.overworld:getBlock(10, 64, 9) == 8, "woda splynela (tick swiata bez gospodarza)")
+  T.eq(g.world:getBlock(10, 64, 9), 8, "gosc widzi wode")
+  -- gość nie widzi gospodarza (inny wymiar)
+  local sawHost = false
+  for _, e in ipairs(g.entities.list) do if e.id == -1 then sawHost = true end end
+  T.eq(sawHost, false, "gospodarza nie widac")
+  -- zapis zapisuje oba wymiary
+  T.truthy(host.worlds.overworld.chunks, "swiat nadal wczytany")
+end)
+
+suite:test("portal: smierc w Netherze - odrodzenie w swiecie", function()
+  local host, srv, cl = setup()
+  run(host, srv, cl, 40)
+  local g = cl.game
+  cl:requestTravel("nether")
+  run(host, srv, cl, 10)
+  T.eq(g.dimension, "nether")
+  g.dead = true
+  T.truthy(g.survival.respawn(g), "odrodzenie")
+  run(host, srv, cl, 10)
+  T.eq(g.dimension, "overworld", "po smierci w swiecie")
+  local ctx = select(2, next(srv.peers))
+  T.eq(ctx.dim, "overworld")
+end)
+
+suite:test("portal Endu: gosc idzie do Endu i wraca", function()
+  local host, srv, cl = setup()
+  run(host, srv, cl, 40)
+  local g = cl.game
+  cl:requestTravel("end")
+  run(host, srv, cl, 60)
+  T.eq(g.dimension, "end", "gosc w Endzie")
+  T.eq(host.dimension, "overworld")
+  local p = g.player
+  local a = require("core.endportal").ARRIVAL
+  T.eq(math.floor(p.x), a[1], "na platformie")
+  T.eq(g.world:getBlock(a[1], a[2] - 1, a[3]), 49, "obsydianowa platforma u goscia")
+  T.truthy(g.world.noSky, "bez nieba")
+  -- wyjście z Endu (jak portal powrotny po smoku): do punktu startu
+  cl.travelAsked = nil
+  cl:requestTravel("end")
+  run(host, srv, cl, 10)
+  T.eq(g.dimension, "overworld", "powrot z Endu")
+  T.truthy(math.abs(p.x - host.worldSpawnX) < 1 and math.abs(p.z - host.worldSpawnZ) < 1, "w punkcie startu")
+end)
+
 suite:test("przedmioty: gosc wyrzuca, gospodarz tworzy, gosc podnosi", function()
   local host, srv, cl = setup()
   run(host, srv, cl, 40)

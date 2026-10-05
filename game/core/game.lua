@@ -97,7 +97,10 @@ end
 function Game:makeWorld(dim)
   local opts = self.opts
   local generator
-  if dim == "nether" then
+  if opts.remote and dim ~= "overworld" then
+    -- gość: teren każdego wymiaru przychodzi od gospodarza
+    generator = false
+  elseif dim == "nether" then
     local nethergen = require("core.nethergen")
     local gen = nethergen.new(self.seed)
     generator = function(chunk) gen:generate(chunk) end
@@ -152,19 +155,35 @@ function Game:makeWorld(dim)
   return w
 end
 
+-- Stan zależny od wymiaru (przy zmianie wymiaru zapamiętywany osobno)
+local DIM_FIELDS = { "scheduled", "scheduledSet", "endDragon", "endCrystals" }
+
 -- Ustawia wymiar bez teleportu (np. po wczytaniu zapisu)
 function Game:setDimension(dim)
   if dim == self.dimension then return end
   self.entitiesByDim[self.dimension] = self.entities
+  local st = {}
+  for _, k in ipairs(DIM_FIELDS) do st[k] = self[k] end
+  self.dimState = self.dimState or {}
+  self.dimState[self.dimension] = st
   self.dimension = dim
   self.world = self.worlds[dim]
+  local created = false
   if not self.world then
     self.world = self:makeWorld(dim)
     self.worlds[dim] = self.world
     self.world:addListener(self)
+    created = true
   end
-  self.entities = self.entitiesByDim[dim] or entities.new(self)
+  -- gość ma jedną listę duchów bytów na wszystkie wymiary
+  if not self.remote then
+    self.entities = self.entitiesByDim[dim] or entities.new(self)
+  end
   self.entitiesByDim[dim] = self.entities
+  local saved = self.dimState[dim]
+  for _, k in ipairs(DIM_FIELDS) do self[k] = saved and saved[k] end
+  self.scheduled = self.scheduled or {}
+  self.scheduledSet = self.scheduledSet or {}
   if dim == "nether" then
     local nb = require("core.nethergen").BIOME
     self.biomeAt = function() return nb end
@@ -174,23 +193,45 @@ function Game:setDimension(dim)
   else
     self.biomeAt = self.overworldBiome
   end
+  if created and self.netServer then self.netServer:hookDimension(dim) end
+end
+
+-- Wywołuje fn z innym wymiarem jako bieżącym (serwer: gracze w różnych
+-- wymiarach). Gracz gospodarza się nie zmienia, tylko świat i byty.
+function Game:withDimension(dim, fn, ...)
+  local old = self.dimension
+  if old == dim then return fn(...) end
+  local outer = self.realDimension == nil
+  if outer then self.realDimension = old end
+  self:setDimension(dim)
+  local ok, a, b, c = pcall(fn, ...)
+  self:setDimension(old)
+  if outer then self.realDimension = nil end
+  if not ok then error(a, 0) end
+  return a, b, c
 end
 
 -- Przejście do innego wymiaru: zapis i zwolnienie starego, przygotowanie nowego
 function Game:changeDimension(dim, x, y, z)
   local old = self.world
-  -- zapis stanu i zwolnienie wszystkich chunków poprzedniego wymiaru
-  old:unloadFar(0, 0, -1)
-  for _, e in ipairs(self.entities.list) do e.dead = true end
-  self.entities.list = {}
-  self.endDragon, self.endCrystals = nil, nil
-  self.scheduled, self.scheduledSet = {}, {}
+  -- gospodarz gry sieciowej: stary wymiar zostaje (mogą w nim być goście,
+  -- serwer sam go zwolni, gdy nikogo tam nie będzie)
+  if not self.netServer then
+    -- zapis stanu i zwolnienie wszystkich chunków poprzedniego wymiaru
+    old:unloadFar(0, 0, -1)
+    for _, e in ipairs(self.entities.list) do e.dead = true end
+    self.entities.list = {}
+    if self.entities.byId then self.entities.byId = {} end
+    self.endDragon, self.endCrystals = nil, nil
+    self.scheduled, self.scheduledSet = {}, {}
+  end
   self.mining = nil
   self:setDimension(dim)
   local p = self.player
   p.x, p.y, p.z = x, y, z
   p.prevX, p.prevY, p.prevZ = x, y, z
-  self.world:updateLoading(floor(x / 16), floor(z / 16), 1, 1000)
+  -- gość dostaje teren od gospodarza (puste chunki tylko by przeszkadzały)
+  if not self.remote then self.world:updateLoading(floor(x / 16), floor(z / 16), 1, 1000) end
   self:emit("dimension", dim)
 end
 
@@ -198,7 +239,8 @@ end
 -- Zdarzenia dla warstwy grafiki/dźwięku
 -- ---------------------------------------------------------------------------
 function Game:emit(kind, a, b, c, d, e)
-  self.events[#self.events + 1] = { kind, a, b, c, d, e }
+  -- dim: w którym wymiarze to się stało (gospodarz gry sieciowej liczy kilka)
+  self.events[#self.events + 1] = { kind, a, b, c, d, e, dim = self.dimension }
 end
 
 function Game:popEvents()
@@ -1093,10 +1135,9 @@ function Game:tick()
       p:tick(self.world, self.survival.canSprint(self))
     end
     self:tickInteraction()
-    if not remote then
-      require("core.portal").tick(self)
-      require("core.endportal").tick(self)
-    end
+    -- gość też: podróż zleca wtedy gospodarzowi
+    require("core.portal").tick(self)
+    require("core.endportal").tick(self)
     maps.tick(self)
   end
 
@@ -1157,14 +1198,19 @@ function Game:saveAll()
   local folder = self.saveFolder
   if not folder then return 0 end
   local n = 0
-  for _, chunk in pairs(self.world.chunks) do
-    local list = save.collectEntities(self, chunk, false)
-    if #list > 0 then chunk.savedEntities = list end
-    if chunk.modified or #list > 0 then
-      save.saveChunk(folder, chunk, self.dimension)
-      n = n + 1
-    end
-    chunk.savedEntities = nil
+  -- wszystkie wczytane wymiary (w grze sieciowej gracze bywają w różnych)
+  for dim in pairs(self.worlds) do
+    self:withDimension(dim, function()
+      for _, chunk in pairs(self.world.chunks) do
+        local list = save.collectEntities(self, chunk, false)
+        if #list > 0 then chunk.savedEntities = list end
+        if chunk.modified or #list > 0 then
+          save.saveChunk(folder, chunk, self.dimension)
+          n = n + 1
+        end
+        chunk.savedEntities = nil
+      end
+    end)
   end
   save.saveLevel(folder, self)
   maps.saveAll(self)

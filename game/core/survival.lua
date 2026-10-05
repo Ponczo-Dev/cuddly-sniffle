@@ -286,7 +286,9 @@ function S.respawn(game)
     x, y, z = game.worldSpawnX, game.worldSpawnY, game.worldSpawnZ
   end
   if game.dimension ~= "overworld" then
-    game:changeDimension("overworld", x, y, z)
+    -- gość: powrót do zwykłego świata załatwia gospodarz
+    if game.netClient then game.netClient:requestTravel("respawn", x, y, z)
+    else game:changeDimension("overworld", x, y, z) end
   end
   p.x, p.y, p.z = x, y, z
   p.prevX, p.prevY, p.prevZ = x, y, z

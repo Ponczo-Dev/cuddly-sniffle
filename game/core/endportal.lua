@@ -107,9 +107,26 @@ end
 -- ---------------------------------------------------------------------------
 -- Podróż
 -- ---------------------------------------------------------------------------
+-- Platforma przyjścia w Endzie (game.world musi być już Endem).
+-- Zwraca pozycję stóp gracza.
+function M.arrive(game)
+  local a = M.ARRIVAL
+  local w = game.world
+  w:updateLoading(floor(a[1] / 16), floor(a[3] / 16), 1, 1000)
+  -- platforma z obsydianu i miejsce nad nią
+  for x = a[1] - 2, a[1] + 2 do
+    for z = a[3] - 2, a[3] + 2 do
+      w:setBlock(x, a[2] - 1, z, 49, 0)
+      for y = a[2], a[2] + 2 do w:setBlock(x, y, z, 0, 0) end
+    end
+  end
+  return a[1] + 0.5, a[2], a[3] + 0.5
+end
+
 function M.travel(game)
-  if game.net then
-    game:emit("message", "Portale nie dzialaja w grze wieloosobowej")
+  -- gość: podróż liczy gospodarz
+  if game.netClient then
+    game.netClient:requestTravel("end")
     return
   end
   local p = game.player
@@ -124,14 +141,8 @@ function M.travel(game)
   end
   local a = M.ARRIVAL
   game:changeDimension("end", a[1] + 0.5, a[2], a[3] + 0.5)
-  -- platforma z obsydianu i miejsce nad nią
-  local w = game.world
-  for x = a[1] - 2, a[1] + 2 do
-    for z = a[3] - 2, a[3] + 2 do
-      w:setBlock(x, a[2] - 1, z, 49, 0)
-      for y = a[2], a[2] + 2 do w:setBlock(x, y, z, 0, 0) end
-    end
-  end
+  p.x, p.y, p.z = M.arrive(game)
+  p.prevX, p.prevY, p.prevZ = p.x, p.y, p.z
   p.vx, p.vy, p.vz = 0, 0, 0
   p.fallDistance = 0
   game:emit("message", "Wszedles do Endu. Pokonaj smoka!")

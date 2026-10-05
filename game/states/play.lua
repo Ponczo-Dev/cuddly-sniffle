@@ -545,10 +545,18 @@ function Play:ambientParticles()
   end
 end
 
+-- Efekty, które dzieją się w konkretnym miejscu świata. Gospodarz gry
+-- sieciowej liczy też wymiary gości - ich efektów nie pokazujemy.
+local LOCAL_FX = { ["break"] = true, hit = true, place = true, sound = true, particles = true,
+  explosion = true, lightning = true }
+
 function Play:handleEvents()
   local game = self.game
   for _, ev in ipairs(game:popEvents()) do
     local kind = ev[1]
+    if ev.dim and ev.dim ~= game.dimension and LOCAL_FX[kind] then
+      kind = nil
+    end
     if kind == "break" then
       particles.blockBreak(ev[2], ev[3], ev[4], ev[5], ev[6])
       sound.dig(ev[5], ev[2] + 0.5, ev[3] + 0.5, ev[4] + 0.5, 1)

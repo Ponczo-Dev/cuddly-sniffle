@@ -36,8 +36,13 @@ function M.connect(transport, opts)
   return self
 end
 
+-- Pakiety dotyczące świata niosą wymiar gościa: gospodarz odrzuci te
+-- wysłane jeszcze przed przejściem przez portal
+local DIM_TAGGED = { pos = true, b = true, spawn = true, attack = true, tileset = true, tileget = true }
+
 function Client:send(msg, payload)
   if self.state == "closed" then return end
+  if self.game and DIM_TAGGED[msg.t] then msg.d = self.game.dimension end
   self.transport:send(pack(msg, payload))
 end
 
@@ -188,6 +193,8 @@ function Ghosts:sync(list)
           end
         elseif t == "player" then
           e.kind, e.width, e.height = "player", 0.6, 1.8
+        elseif t == "crystal" then
+          e.kind, e.isCrystal, e.width, e.height = "crystal", true, 2, 2
         elseif t == "minecart" then
           e.isVehicle, e.width, e.height = true, 0.98, 0.7
         elseif t == "boat" then
@@ -234,7 +241,7 @@ local function makeMobsProxy(client)
   proxy.interact = function() return false end
   proxy.playerAttack = function(game, e)
     local p = game.player
-    if e.isVehicle then
+    if e.isVehicle or e.isCrystal then
       client:send({ t = "attack", id = e.id })
       return
     end
@@ -289,12 +296,54 @@ function Client:startGame(w)
   game.mobs = makeMobsProxy(self)
   game.netClient = self
   game.net = self
-  game.world:addListener(self)
+  -- gość wraca do gry w Netherze albo w Endzie
+  if w.dim == "nether" or w.dim == "end" then game:setDimension(w.dim) end
+  self:hookWorld(game.world)
   self.game = game
   self.hostName = w.host
   self.dedicated = w.dedicated or false
   self.playerName = w.name
   self.state = "play"
+end
+
+-- Słuchamy zmian bloków robionych przez gracza (w każdym wymiarze)
+function Client:hookWorld(world)
+  if world.netClientHooked then return end
+  world.netClientHooked = true
+  world:addListener(self)
+end
+
+-- Prośba do gospodarza o podróż: kind = "nether" (portal), "end" (portal
+-- Endu) albo "respawn" (odrodzenie w zwykłym świecie, x/y/z = punkt startu)
+function Client:requestTravel(kind, x, y, z)
+  local game = self.game
+  if not game then return end
+  if self.travelAsked and self.ticks - self.travelAsked < 60 then return end
+  self.travelAsked = self.ticks
+  if kind == "end" and game.dimension == "end" then
+    -- powrót z Endu: do łóżka, jeśli jest
+    x, y, z = game.spawnX, game.spawnY, game.spawnZ
+  end
+  self:send({ t = "portal", kind = kind, x = x, y = y, z = z })
+end
+
+-- Gospodarz przeniósł gościa do innego wymiaru
+function Client:changeDimension(msg)
+  local game = self.game
+  local dim = msg.dim
+  if dim ~= "overworld" and dim ~= "nether" and dim ~= "end" then return end
+  local x, y, z = tonumber(msg.x) or 0.5, tonumber(msg.y) or 80, tonumber(msg.z) or 0.5
+  game:changeDimension(dim, x, y, z)
+  self:hookWorld(game.world)
+  self.recorded = {}
+  local p = game.player
+  p.vx, p.vy, p.vz = 0, 0, 0
+  p.fallDistance = 0
+  -- nie wracamy od razu portalem, w którym stoimy po przyjściu
+  game.portalTimer, game.portalCooldown, game.endCooldown = 0, 100, 60
+  if msg.fix then game.needsSpawnFix = true end
+  self.travelAsked = nil
+  game:emit("sound", "teleport", x, y, z)
 end
 
 -- Stan gracza zapisywany u gospodarza (żeby po powrocie mieć swój ekwipunek)
@@ -443,6 +492,8 @@ function Client:handle(msg, payload)
     end
   elseif t == "tile" then
     self:receiveTile(msg)
+  elseif t == "dim" then
+    self:changeDimension(msg)
   end
 end
 

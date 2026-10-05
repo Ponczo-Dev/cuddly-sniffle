@@ -9,7 +9,7 @@ local serialize = require("core.serialize")
 local M = {}
 
 M.PORT = 25565
-M.VERSION = 1
+M.VERSION = 2
 M.MAX_PLAYERS = 8
 
 function M.pack(msg, payload)
