@@ -89,7 +89,7 @@ przeciąganie ze stosem (rozłożenie po slotach), Q nad slotem (wyrzuć), 1–9
   wioski (puste jak w Beta 1.8: studnia, drogi, domy, kuźnia ze skrzynią, pola, biblioteka, wieża).
   Komenda `/locate village` albo `/locate mineshaft` pokazuje najbliższą.
 - **Zaklinanie:** stół do zaklinania (książka, 2 diamenty, 4 obsydian) otoczony biblioteczkami (do 15).
-  Trzy oferty za poziomy doświadczenia, 20 zaklęć z działającymi efektami: Ochrona (i przed ogniem,
+  Trzy oferty za poziomy doświadczenia, 21 zaklęć z działającymi efektami: Ochrona (i przed ogniem,
   wybuchami, pociskami), Powolne opadanie, Oddychanie, Wydajność pod wodą, Ostrość, Pogromca nieumarłych,
   Zmora stawonogów, Odrzut, Zaklęty ogień, Grabież, Wydajność, Jedwabny dotyk, Niezniszczalność,
   Szczęście, Moc, Uderzenie, Płomień, Nieskończoność. Zaklęte przedmioty mają fioletową poświatę.
