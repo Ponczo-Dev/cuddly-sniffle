@@ -79,6 +79,7 @@ function Play:enter(params)
   gui.userScale = options.values.guiScale
   gui.updateScale()
   sound.setVolume(options.values.volume)
+  sound.setMusicVolume(options.values.music)
   if game.dead then self:openScreen(menus.death(game, function(a) self:deathAction(a) end)) end
   if game.netClient then
     local who = game.netClient.dedicated and "z serwerem" or ("z gra gracza " .. (game.netClient.hostName or "?"))
@@ -213,7 +214,8 @@ function Play:applyOption(key, value)
   if key == "renderDistance" then game.renderDistance = value
   elseif key == "guiScale" then gui.userScale = value; gui.updateScale()
   elseif key == "difficulty" then game.difficulty = value
-  elseif key == "volume" then sound.setVolume(value) end
+  elseif key == "volume" then sound.setVolume(value)
+  elseif key == "music" then sound.setMusicVolume(value) end
 end
 
 function Play:deathAction(action)
@@ -559,7 +561,7 @@ function Play:handleEvents()
     elseif kind == "sound" then
       local name = ev[2]
       if name == "mob_hurt" or name == "mob_death" then
-        sound.voice(ev[6], ev[3], ev[4], ev[5], name == "mob_death" and 0.8 or 1.1)
+        sound.mob(ev[6], name == "mob_death" and "death" or "hurt", ev[3], ev[4], ev[5])
       elseif name == "step_grass" then
         sound.dig(2, ev[3], ev[4], ev[5])
       elseif name == "fuse" then
@@ -614,6 +616,10 @@ end
 
 function Play:update(dt, alpha)
   local game = self.game
+  -- muzyka Minecrafta (jeśli jest zainstalowany)
+  local ctx = game.dimension == "nether" and "nether" or (game.dimension == "end" and "end"
+    or (game.player.gameMode == "creative" and "creative" or "game"))
+  sound.updateMusic(dt, ctx)
   gui.updateScale()
   -- ładowanie świata z limitem czasu na klatkę
   local start = love.timer.getTime()

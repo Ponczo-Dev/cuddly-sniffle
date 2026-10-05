@@ -6,3 +6,6 @@ lua/*
 
 # Kopie zapasowe faz
 *.zip
+
+# Dzwieki Minecrafta (wlasnosc Mojang) - nie wrzucamy do repozytorium
+game/sounds/

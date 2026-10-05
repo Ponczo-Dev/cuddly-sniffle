@@ -46,6 +46,8 @@ function Menu:enter(params)
   love.keyboard.setKeyRepeat(true)
   gui.userScale = options.values.guiScale
   gui.updateScale()
+  sound.setVolume(options.values.volume)
+  sound.setMusicVolume(options.values.music)
 end
 
 function Menu:leave()
@@ -67,6 +69,7 @@ end
 
 function Menu:update(dt)
   self.time = self.time + dt
+  sound.updateMusic(dt, "menu")
   gui.updateScale()
 end
 
@@ -99,6 +102,11 @@ function Menu:drawTitle()
     self.buttons[i] = b
     gui.button(l, b.x, b.y, b.w, b.h)
   end
+  -- skąd są dźwięki
+  local info = sound.info
+  local snd = info.count > 0 and ("Dzwieki: " .. info.source .. " (" .. info.count .. " plikow)")
+    or "Brak dzwiekow: zainstaluj Minecraft (oficjalny launcher) albo wrzuc pliki .ogg do folderu sounds"
+  gui.text(snd, 0, h - 24 * s, info.count > 0 and { 0.6, 0.8, 0.6 } or { 0.9, 0.7, 0.4 }, 0.9, "center", w)
   gui.text("Minecraft Lua - klon ery Beta, napisany w Lua i LOVE", 4 * s, h - 12 * s,
     { 0.8, 0.8, 0.8 }, 0.9)
   gui.text("Nie jest powiazany z Mojang", 0, h - 12 * s, { 0.8, 0.8, 0.8 }, 0.9, "right", w - 4 * s)
@@ -266,6 +274,7 @@ function Menu:action(a)
       self.optionsScreen = menus.options(function(key, value)
         if key == "guiScale" then gui.userScale = value; gui.updateScale() end
         if key == "volume" then sound.setVolume(value) end
+        if key == "music" then sound.setMusicVolume(value) end
       end, function()
         options.save(fs)
         self.page = "title"

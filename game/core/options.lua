@@ -11,6 +11,7 @@ M.defaults = {
   fov = 70,
   sensitivity = 0.5,   -- 0..1
   volume = 0.7,
+  music = 0.5,          -- głośność muzyki (z Minecrafta, jeśli zainstalowany)
   guiScale = 0,        -- 0 = auto
   difficulty = 2,
   viewBobbing = true,

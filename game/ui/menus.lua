@@ -104,6 +104,8 @@ function M.options(onChange, onClose, background)
       label = function(v) return "Czulosc myszy: " .. math.floor(v * 200) .. "%" end },
     { kind = "slider", key = "volume", min = 0, max = 1, step = 0.01,
       label = function(v) return "Glosnosc: " .. math.floor(v * 100) .. "%" end },
+    { kind = "slider", key = "music", min = 0, max = 1, step = 0.01,
+      label = function(v) return "Muzyka: " .. (v <= 0 and "Wyl" or (math.floor(v * 100) .. "%")) end },
     { kind = "cycle", key = "guiScale", values = { 0, 1, 2, 3, 4 },
       label = function(v) return "Skala GUI: " .. (v == 0 and "Auto" or v) end },
     { kind = "cycle", key = "difficulty", values = { 0, 1, 2, 3 },

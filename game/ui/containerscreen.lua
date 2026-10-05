@@ -101,7 +101,7 @@ function M.new(game, kind, pos)
     self.h = 114 + rows * 18
     playerSlots(game, slots, 32 + rows * 18)
     opts.shift = { chest = { "hotbar", "main" }, hotbar = { "chest" }, main = { "chest" } }
-    sound.play("door", pos[1] + 0.5, pos[2] + 0.5, pos[3] + 0.5, 0.6)
+    sound.play("chest_open", pos[1] + 0.5, pos[2] + 0.5, pos[3] + 0.5, 0.6)
   elseif kind == "furnace" then
     self.title = "Piec"
     self.tile = game:getOrCreateTile(pos[1], pos[2], pos[3])
@@ -528,7 +528,7 @@ function Screen:close()
   self.container:close(function(stack) game:giveItem(stack) end)
   game.uiOpen = false
   if self.kind == "chest" and self.pos then
-    sound.play("door", self.pos[1] + 0.5, self.pos[2] + 0.5, self.pos[3] + 0.5, 0.5)
+    sound.play("chest_close", self.pos[1] + 0.5, self.pos[2] + 0.5, self.pos[3] + 0.5, 0.5)
   end
 end
 

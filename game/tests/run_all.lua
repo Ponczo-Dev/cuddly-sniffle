@@ -26,6 +26,7 @@ local files = {
   "test_net",
   "test_magic",
   "test_end",
+  "test_sound",
 }
 
 local jit = rawget(_G, "jit")
