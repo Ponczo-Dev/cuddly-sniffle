@@ -22,6 +22,7 @@ local survival = require("core.survival")
 local mobs = require("core.mobs")
 local save = require("core.save")
 local potions = require("core.potions")
+local maps = require("core.maps")
 
 local M = {}
 
@@ -85,6 +86,7 @@ function M.new(opts)
   self.survival = survival
   self.mobs = mobs
   mobs.init(self)
+  maps.init(self)
   self.worldSpawnX, self.worldSpawnY, self.worldSpawnZ = 0.5, 80, 0.5
   return self
 end
@@ -1084,6 +1086,7 @@ function Game:tick()
     end
     self:tickInteraction()
     if not remote then require("core.portal").tick(self) end
+    maps.tick(self)
   end
 
   self.survival.tick(self)
@@ -1151,6 +1154,7 @@ function Game:saveAll()
     chunk.savedEntities = nil
   end
   save.saveLevel(folder, self)
+  maps.saveAll(self)
   return n
 end
 

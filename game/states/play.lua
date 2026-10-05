@@ -1028,6 +1028,7 @@ function Play:draw(alpha)
   g.setColor(1, 1, 1, 1)
 
   self:drawNameTags(alpha)
+  if self.showHud and not game.dead and not self.screen then self:drawHeldMap() end
   if self.showHud and not game.dead then
     hud.draw(game, alpha, { hideCrosshair = self.screen ~= nil or self.thirdPerson > 0,
       chatOpen = self.screen and self.screen.text ~= nil })
@@ -1037,6 +1038,68 @@ function Play:draw(alpha)
     gui.text("FPS: " .. love.timer.getFPS(), 4, 4, { 1, 1, 0.4 })
   end
   if self.screen then self.screen:draw() end
+end
+
+-- Mapa trzymana w ręce: duży podgląd na dole ekranu
+function Play:drawHeldMap()
+  local game = self.game
+  local held = game:heldStack()
+  if not held or held.id ~= 358 then return end
+  local maps = require("core.maps")
+  local map = maps.get(game, held.damage or 0)
+  if not map then return end
+  local N = maps.SIZE
+  self.mapImages = self.mapImages or {}
+  local entry = self.mapImages[held.damage or 0]
+  if not entry then
+    entry = { data = love.image.newImageData(N, N), version = -1 }
+    self.mapImages[held.damage or 0] = entry
+  end
+  if entry.version ~= map.version then
+    local d = entry.data
+    for z = 0, N - 1 do
+      for x = 0, N - 1 do
+        local r, gg, b = maps.pixelColor(map.data[x + z * N])
+        if r then d:setPixel(x, z, r / 255, gg / 255, b / 255, 1)
+        else d:setPixel(x, z, 0.85, 0.78, 0.62, 1) end
+      end
+    end
+    if entry.image then entry.image:replacePixels(d) else
+      entry.image = love.graphics.newImage(d)
+      entry.image:setFilter("nearest", "nearest")
+    end
+    entry.version = map.version
+  end
+  local g = love.graphics
+  local w, h = g.getDimensions()
+  local size = math.floor(math.min(w * 0.45, h * 0.62))
+  local x0, y0 = math.floor(w / 2 - size / 2), math.floor(h - size - 50 * gui.scale)
+  -- pergamin
+  g.setColor(0.55, 0.43, 0.27, 1)
+  g.rectangle("fill", x0 - 10, y0 - 10, size + 20, size + 20)
+  g.setColor(0.86, 0.79, 0.62, 1)
+  g.rectangle("fill", x0 - 6, y0 - 6, size + 12, size + 12)
+  g.setColor(1, 1, 1, 1)
+  g.draw(entry.image, x0, y0, 0, size / N, size / N)
+  -- znacznik gracza (strzałka)
+  local p = game.player
+  if map.dim == game.dimension then
+    local mx, mz = (p.x - map.x0) / N, (p.z - map.z0) / N
+    if mx >= 0 and mx <= 1 and mz >= 0 and mz <= 1 then
+      local cx, cy = x0 + mx * size, y0 + mz * size
+      local fx, fz = -math.sin(p.yaw), -math.cos(p.yaw)
+      local k = size / 40
+      g.setColor(1, 1, 1, 1)
+      g.polygon("fill", cx + fx * k * 1.6, cy + fz * k * 1.6, cx - fz * k - fx * k, cy + fx * k - fz * k,
+        cx + fz * k - fx * k, cy - fx * k - fz * k)
+      g.setColor(0.2, 0.2, 0.2, 1)
+      g.setLineWidth(1)
+      g.polygon("line", cx + fx * k * 1.6, cy + fz * k * 1.6, cx - fz * k - fx * k, cy + fx * k - fz * k,
+        cx + fz * k - fx * k, cy - fx * k - fz * k)
+    end
+  end
+  gui.text("Mapa #" .. (held.damage or 0), x0, y0 - 22 * gui.scale, { 1, 1, 1 })
+  g.setColor(1, 1, 1, 1)
 end
 
 -- Nicki nad głowami innych graczy (gra wieloosobowa)

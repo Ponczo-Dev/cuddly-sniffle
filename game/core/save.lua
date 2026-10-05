@@ -266,6 +266,7 @@ function M.levelData(game)
     dimension = game.dimension,
     difficulty = game.difficulty, hardcore = game.hardcore, time = game.time,
     dayTime = game.dayTime, lastPlayed = os.time(), dead = game.dead,
+    nextMapId = game.nextMapId, endState = game.endState,
     weather = { raining = game.weather.raining, thunder = game.weather.thunder,
       timer = game.weather.timer },
     worldSpawn = { game.worldSpawnX, game.worldSpawnY, game.worldSpawnZ },
@@ -299,6 +300,8 @@ function M.applyLevel(game, data)
   game.hardcore = data.hardcore or false
   game.time = data.time or 0
   game.dayTime = data.dayTime or 1000
+  game.nextMapId = data.nextMapId or 0
+  game.endState = data.endState
   if data.weather then
     game.weather.raining = data.weather.raining or false
     game.weather.thunder = data.weather.thunder or false

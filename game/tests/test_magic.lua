@@ -150,4 +150,25 @@ suite:test("mikstury: rzucana krzywda rani moba, leczy zombie", function()
   T.truthy(z.health > 10, "zombie sie wyleczyl")
 end)
 
+suite:test("mapy: tworzenie i odkrywanie terenu", function()
+  local maps = require("core.maps")
+  local g = flatGame()
+  g.player.gameMode = "survival"
+  g.world:setBlock(9, 63, 9, 8, 0) -- woda
+  g.inventory:set(1, { id = 395, count = 1, damage = 0 })
+  g.selected = 1
+  T.truthy(g:useItem(nil), "uzycie pustej mapy")
+  local st = g.inventory.slots[1]
+  T.eq(st and st.id, 358, "dostal mape")
+  local map = maps.get(g, st.damage)
+  T.eq(map.x0, -64)
+  T.eq(map.z0, -64)
+  local v = map.data[(8 + 64) + (8 + 64) * 128]
+  T.eq(math.floor(v / 4), 1, "trawa na mapie")
+  T.eq(math.floor(map.data[(9 + 64) + (9 + 64) * 128] / 4), 5, "woda na mapie")
+  T.eq(map.data[0], 0, "daleko nieodkryte")
+  local r = maps.pixelColor(v)
+  T.truthy(r and r > 100)
+end)
+
 return suite
