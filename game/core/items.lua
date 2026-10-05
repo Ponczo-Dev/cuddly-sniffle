@@ -127,7 +127,8 @@ I.define { id = 289, name = "gunpowder", label = "Proch", icon = "gunpowder" }
 I.define { id = 295, name = "seeds", label = "Nasiona", icon = "seeds", plant = 59 }
 I.define { id = 296, name = "wheat_item", label = "Pszenica", icon = "wheat" }
 I.define { id = 318, name = "flint", label = "Krzemien", icon = "flint" }
-I.define { id = 331, name = "redstone", label = "Czerwony pyl", icon = "redstone" }
+I.define { id = 331, name = "redstone", label = "Czerwony pyl", icon = "redstone", plant = 55 }
+I.define { id = 356, name = "repeater_item", label = "Przekaznik", icon = "repeater", placeBlock = 93 }
 I.define { id = 332, name = "snowball", label = "Sniezka", icon = "snowball", stack = 16,
   use = "throw" }
 I.define { id = 334, name = "leather", label = "Skora", icon = "leather" }

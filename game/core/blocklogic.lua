@@ -9,6 +9,12 @@ local blocks = require("core.blocks")
 
 local L = {}
 
+local redstoneMod
+local function redstone()
+  if not redstoneMod then redstoneMod = require("core.redstone") end
+  return redstoneMod
+end
+
 local defs = blocks.defs
 local OPAQUE = blocks.OPAQUE
 local SOLID = blocks.SOLID
@@ -78,6 +84,20 @@ local PLACE_RULES = {
     return false
   end,
   [SNOW_LAYER] = function(w, x, y, z) return solidAt(w, x, y - 1, z) end,
+  [55] = function(w, x, y, z) return solidAt(w, x, y - 1, z) end,
+  [70] = function(w, x, y, z) return solidAt(w, x, y - 1, z) end,
+  [93] = function(w, x, y, z) return solidAt(w, x, y - 1, z) end,
+  [94] = function(w, x, y, z) return solidAt(w, x, y - 1, z) end,
+  [77] = function(w, x, y, z, meta)
+    local v = blocks.SUPPORT[(meta or 0) % 8]
+    if not v or (meta or 0) % 8 == 0 then return false end
+    return solidAt(w, x + v[1], y + v[2], z + v[3])
+  end,
+  [69] = function(w, x, y, z, meta)
+    local v = blocks.SUPPORT[(meta or 0) % 8]
+    if not v then return false end
+    return solidAt(w, x + v[1], y + v[2], z + v[3])
+  end,
   [TORCH] = function(w, x, y, z, meta)
     if meta == 0 then return solidAt(w, x, y - 1, z) end
     if meta == 1 then return solidAt(w, x - 1, y, z) end
@@ -86,6 +106,8 @@ local PLACE_RULES = {
     if meta == 4 then return solidAt(w, x, y, z + 1) end
     return false
   end,
+  [75] = function(w, x, y, z, meta) return L.PLACE_RULES[TORCH](w, x, y, z, meta) end,
+  [76] = function(w, x, y, z, meta) return L.PLACE_RULES[TORCH](w, x, y, z, meta) end,
   [LADDER] = function(w, x, y, z, meta)
     if meta == 1 then return solidAt(w, x - 1, y, z) end
     if meta == 2 then return solidAt(w, x + 1, y, z) end
@@ -124,19 +146,34 @@ local FACE_TO_SUPPORT = { [1] = 1, [2] = 2, [5] = 3, [6] = 4, [3] = 0 }
 
 -- Oblicza meta stawianego bloku. Zwraca meta albo nil (nie można postawić).
 -- hit: wynik raycastu (face), look: wektor patrzenia gracza
-function L.placementMeta(world, blockId, x, y, z, hit, lookX, lookZ, itemDamage)
+function L.placementMeta(world, blockId, x, y, z, hit, lookX, lookZ, itemDamage, lookY)
   local def = defs[blockId]
-  if blockId == TORCH then
+  if blockId == TORCH or blockId == 76 or blockId == 75 or blockId == 69 then
     local meta = FACE_TO_SUPPORT[hit.face]
     if meta == nil then return nil end
-    if not PLACE_RULES[TORCH](world, x, y, z, meta) then
+    local rule = PLACE_RULES[blockId]
+    if not rule(world, x, y, z, meta) then
       -- spróbuj innych podpór
       for m = 0, 4 do
-        if PLACE_RULES[TORCH](world, x, y, z, m) then return m end
+        if rule(world, x, y, z, m) then return m end
       end
       return nil
     end
     return meta
+  end
+  if blockId == 77 then
+    local meta = FACE_TO_SUPPORT[hit.face]
+    if not meta or meta == 0 then return nil end
+    return meta
+  end
+  if blockId == 93 then
+    return lookDir(lookX, lookZ)
+  end
+  if blockId == 33 or blockId == 29 then
+    return redstone().pistonFacing(lookX, lookY or 0, lookZ)
+  end
+  if blockId == 85 then
+    return L.fenceMeta(world, x, y, z)
   end
   if blockId == LADDER then
     local meta = FACE_TO_SUPPORT[hit.face]
@@ -155,6 +192,20 @@ function L.placementMeta(world, blockId, x, y, z, hit, lookX, lookZ, itemDamage)
     return (itemDamage or 0) % (def.metaMask + 1)
   end
   return 0
+end
+
+-- Połączenia płotka z sąsiadami (płotki i pełne bloki)
+function L.fenceMeta(world, x, y, z)
+  local meta = 0
+  local function conn(nx, nz)
+    local id = world:getBlock(nx, y, nz)
+    return id == 85 or OPAQUE[id] == 1
+  end
+  if conn(x + 1, z) then meta = meta + 1 end
+  if conn(x - 1, z) then meta = meta + 2 end
+  if conn(x, z + 1) then meta = meta + 4 end
+  if conn(x, z - 1) then meta = meta + 8 end
+  return meta
 end
 
 -- ---------------------------------------------------------------------------
@@ -187,6 +238,15 @@ end
 
 -- Druga połowa bloku wielokomórkowego (do usuwania obu naraz)
 function L.otherHalf(world, x, y, z, blockId, meta)
+  if (blockId == 33 or blockId == 29) and meta >= 8 then
+    local v = blocks.FACING6[meta % 8]
+    if world:getBlock(x + v[1], y + v[2], z + v[3]) == 34 then return x + v[1], y + v[2], z + v[3] end
+    return nil
+  end
+  if blockId == 34 then
+    local v = blocks.FACING6[meta % 8]
+    return x - v[1], y - v[2], z - v[3]
+  end
   if blockId == DOOR then
     if meta >= 8 then return x, y - 1, z end
     return x, y + 1, z
@@ -204,6 +264,9 @@ end
 -- ---------------------------------------------------------------------------
 function L.onUse(game, x, y, z, blockId, meta)
   local world = game.world
+  if blockId == 69 or blockId == 77 or blockId == 93 or blockId == 94 then
+    return redstone().onUse(game, x, y, z, blockId, meta)
+  end
   if blockId == DOOR then
     local lx, ly, lz = x, y, z
     local lowerMeta = meta
@@ -263,7 +326,9 @@ function L.onNeighborChanged(game, x, y, z)
     local ox, oy, oz = L.otherHalf(world, x, y, z, blockId, meta)
     if world:getBlock(ox, oy, oz) ~= DOOR or (meta < 8 and not solidAt(world, x, y - 1, z)) then
       game:breakBlock(x, y, z, false)
+      return
     end
+    redstone().onNeighborChanged(game, x, y, z, blockId, meta)
     return
   end
   if blockId == BED then
@@ -292,6 +357,22 @@ function L.onNeighborChanged(game, x, y, z)
   end
   if PLACE_RULES[blockId] and not PLACE_RULES[blockId](world, x, y, z, meta) then
     game:breakBlock(x, y, z, false)
+    return
+  end
+  if blockId == 85 then
+    local m = L.fenceMeta(world, x, y, z)
+    if m ~= meta then world:setBlock(x, y, z, 85, m) end
+    return
+  end
+  if blockId == 34 then
+    -- głowica bez tłoka znika
+    local v = blocks.FACING6[meta % 8]
+    local bid = world:getBlock(x - v[1], y - v[2], z - v[3])
+    if bid ~= 33 and bid ~= 29 then world:setBlock(x, y, z, AIR, 0) end
+    return
+  end
+  if def.redstone or blockId == TNT then
+    redstone().onNeighborChanged(game, x, y, z, blockId, meta)
   end
 end
 
@@ -563,9 +644,13 @@ end
 
 function L.scheduledTick(game, x, y, z)
   local world = game.world
-  local blockId = world:getBlock(x, y, z)
+  local blockId, meta = world:getBlockAndMeta(x, y, z)
   local def = defs[blockId]
   if not def then return end
+  if def.redstone then
+    redstone().scheduledTick(game, x, y, z, blockId, meta)
+    return
+  end
   if def.liquid then
     L.liquidTick(game, x, y, z, blockId)
   elseif def.gravity then

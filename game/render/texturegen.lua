@@ -861,6 +861,173 @@ G.netherrack = function(rng) return noisy(rng, 110, 50, 50, 15) end
 G.soul_sand = function(rng) return noisy(rng, 85, 64, 50, 12) end
 G.nether_portal = function(rng) return noisy(rng, 120, 40, 200, 30, 190) end
 
+-- ---------------------------------------------------------------------------
+-- Redstone, tłoki, tory
+-- ---------------------------------------------------------------------------
+local function dust(r, g, b)
+  return function(rng)
+    local t = new(0, 0, 0, 0)
+    for i = 0, N - 1 do
+      for w = -1, 1 do
+        local k = 0.75 + rng:next() * 0.3
+        set(t, i, 7 + w, r * k, g * k, b * k)
+        set(t, 7 + w, i, r * k, g * k, b * k)
+      end
+    end
+    for y = 5, 10 do for x = 5, 10 do
+      local k = 0.8 + rng:next() * 0.25
+      set(t, x, y, r * k, g * k, b * k)
+    end end
+    return t
+  end
+end
+G.redstone_dust = dust(110, 10, 10)
+G.redstone_dust_on = dust(250, 40, 30)
+
+local function rtorch(on)
+  return function()
+    local t = new(0, 0, 0, 0)
+    for y = 8, 15 do set(t, 7, y, 110, 85, 50); set(t, 8, y, 90, 68, 40) end
+    local c = on and { 255, 60, 40 } or { 90, 20, 20 }
+    local c2 = on and { 255, 160, 140 } or { 60, 15, 15 }
+    for y = 5, 7 do set(t, 7, y, c[1], c[2], c[3]); set(t, 8, y, c[1], c[2], c[3]) end
+    set(t, 7, 5, c2[1], c2[2], c2[3])
+    return t
+  end
+end
+G.redstone_torch = rtorch(true)
+G.redstone_torch_off = rtorch(false)
+
+G.lever = function()
+  local t = new(0, 0, 0, 0)
+  for y = 2, 13 do set(t, 7, y, 120, 90, 50); set(t, 8, y, 100, 75, 40) end
+  return t
+end
+
+local function repeater(on)
+  return function(rng)
+    local t = noisy(rng, 160, 160, 160, 6)
+    border(t, 0.8)
+    local c = on and { 240, 40, 30 } or { 110, 20, 20 }
+    for y = 2, 13 do set(t, 7, y, c[1], c[2], c[3]); set(t, 8, y, c[1], c[2], c[3]) end
+    for i = 0, 3 do
+      set(t, 7 - i, 2 + i, c[1], c[2], c[3]); set(t, 8 + i, 2 + i, c[1], c[2], c[3])
+    end
+    return t
+  end
+end
+G.repeater = repeater(false)
+G.repeater_on = repeater(true)
+G.stone_button = function(rng) return noisy(rng, 140, 140, 140, 8) end
+G.pressure_plate = function(rng)
+  local t = noisy(rng, 135, 135, 135, 6)
+  border(t, 0.75)
+  return t
+end
+local function lamp(on)
+  return function(rng)
+    local t = cells(rng, 9, on and { { 250, 210, 120 }, { 230, 170, 80 }, { 255, 240, 180 } }
+      or { { 110, 70, 40 }, { 90, 55, 30 }, { 130, 90, 55 } }, 0.6)
+    border(t, 0.55)
+    return t
+  end
+end
+G.redstone_lamp = lamp(false)
+G.redstone_lamp_on = lamp(true)
+
+G.piston_side = function(rng)
+  local t = noisy(rng, 120, 120, 120, 8)
+  for y = 0, 3 do
+    for x = 0, N - 1 do
+      local k = 0.9 + rng:next() * 0.15
+      set(t, x, y, 160 * k, 125 * k, 75 * k)
+    end
+  end
+  for x = 0, N - 1 do shade(t, x, 4, 0.6) end
+  border(t, 0.8)
+  return t
+end
+G.piston_top = function(rng)
+  local t = planks(rng, 165, 130, 80)
+  border(t, 0.7)
+  return t
+end
+G.piston_top_sticky = function(rng)
+  local t = G.piston_top(rng)
+  for y = 3, 12 do for x = 3, 12 do
+    if rng:next() < 0.85 then set(t, x, y, 100 + rng:int(0, 30), 180 + rng:int(0, 40), 80) end
+  end end
+  return t
+end
+G.piston_bottom = function(rng)
+  local t = noisy(rng, 110, 110, 110, 8)
+  border(t, 0.7)
+  for y = 6, 9 do for x = 6, 9 do set(t, x, y, 60, 60, 60) end end
+  return t
+end
+G.piston_inner = function(rng)
+  local t = noisy(rng, 100, 100, 100, 8)
+  for y = 6, 9 do for x = 6, 9 do set(t, x, y, 160, 125, 75) end end
+  return t
+end
+
+local function rail(r, g, b)
+  return function(rng)
+    local t = new(0, 0, 0, 0)
+    for y = 1, N - 2, 3 do
+      for x = 1, N - 2 do
+        local k = 0.85 + rng:next() * 0.2
+        set(t, x, y, 110 * k, 80 * k, 45 * k)
+        set(t, x, y + 1, 95 * k, 70 * k, 40 * k)
+      end
+    end
+    for y = 0, N - 1 do
+      set(t, 3, y, r, g, b); set(t, 4, y, r * 0.8, g * 0.8, b * 0.8)
+      set(t, 11, y, r, g, b); set(t, 12, y, r * 0.8, g * 0.8, b * 0.8)
+    end
+    return t
+  end
+end
+G.rail = rail(170, 170, 170)
+G.powered_rail = function(rng)
+  local t = rail(230, 200, 60)(rng)
+  for y = 0, N - 1, 4 do set(t, 7, y, 120, 20, 20); set(t, 8, y, 120, 20, 20) end
+  return t
+end
+G.powered_rail_on = function(rng)
+  local t = rail(240, 210, 70)(rng)
+  for y = 0, N - 1 do set(t, 7, y, 240, 40, 30); set(t, 8, y, 240, 40, 30) end
+  return t
+end
+G.detector_rail = function(rng)
+  local t = rail(150, 150, 150)(rng)
+  for y = 6, 9 do for x = 6, 9 do set(t, x, y, 160, 30, 30) end end
+  return t
+end
+G.rail_corner = function(rng)
+  local t = new(0, 0, 0, 0)
+  for y = 1, N - 2, 3 do
+    for x = 1, N - 2 do
+      local k = 0.85 + rng:next() * 0.2
+      set(t, x, y, 110 * k, 80 * k, 45 * k)
+    end
+  end
+  for a = 0, 40 do
+    local ang = a / 40 * math.pi / 2
+    for _, rad in ipairs({ 4.5, 12 }) do
+      set(t, math.floor(15.5 - math.cos(ang) * rad), math.floor(15.5 - math.sin(ang) * rad), 170, 170, 170)
+    end
+  end
+  return t
+end
+G.fence = G.planks
+G.trapdoor = function(rng)
+  local t = planks(rng, 150, 110, 60)
+  border(t, 0.6)
+  for y = 3, 12, 3 do for x = 3, 12 do shade(t, x, y, 0.7) end end
+  return t
+end
+
 -- Brakująca tekstura: magenta-czarna szachownica (od razu widać błąd)
 local function missing()
   local t = new()

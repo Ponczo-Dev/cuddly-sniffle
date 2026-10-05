@@ -19,7 +19,8 @@ local catalog
 local function buildCatalog()
   catalog = {}
   local skip = { [0] = true, [8] = true, [10] = true, [26] = true, [51] = true, [59] = true,
-    [62] = true, [64] = true }
+    [62] = true, [64] = true, [55] = true, [75] = true, [93] = true, [94] = true, [124] = true,
+    [34] = true }
   for id = 1, 255 do
     local d = blocks.defs[id]
     if d and not skip[id] then

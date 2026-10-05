@@ -337,6 +337,7 @@ function Game:breakBlock(x, y, z, byPlayer)
   end
 
   self:notifyNeighbors(x, y, z)
+  if def.redstone then require("core.redstone").notifyAround(self, x, y, z) end
   return true
 end
 
@@ -393,7 +394,7 @@ function Game:placeFromHand(hit)
   if not world:isLoadedAt(x, z) then return false end
 
   local p = self.player
-  local lx, _, lz = p:lookVector()
+  local lx, ly, lz = p:lookVector()
 
   -- bloki wielokomórkowe
   local multi = blocklogic.multiPlacement(world, blockId, x, y, z, lx, lz)
@@ -409,7 +410,7 @@ function Game:placeFromHand(hit)
     return true
   end
 
-  local meta = blocklogic.placementMeta(world, blockId, x, y, z, hit, lx, lz, stack.damage)
+  local meta = blocklogic.placementMeta(world, blockId, x, y, z, hit, lx, lz, stack.damage, ly)
   if meta == nil then return false end
   if not blocklogic.canStay(world, blockId, x, y, z, meta) then return false end
   if self:blockedByEntity(x, y, z, blockId, meta) then return false end
@@ -417,6 +418,7 @@ function Game:placeFromHand(hit)
   world:setBlock(x, y, z, blockId, meta)
   if bdef.tileEntity then self:createTile(x, y, z, bdef.tileEntity) end
   self:notifyNeighbors(x, y, z)
+  if bdef.redstone then require("core.redstone").notifyAround(self, x, y, z) end
   if bdef.liquid then self:scheduleTick(x, y, z, 5) end
   if bdef.gravity then self:scheduleTick(x, y, z, 2) end
   self:consumeHeld(1)
@@ -920,6 +922,12 @@ function Game:tick()
 
   self.survival.tick(self)
   self.entities:tick()
+  -- płyty naciskowe pod graczem i bytami
+  local redstone = require("core.redstone")
+  if p.onGround and not self.dead then redstone.checkPlate(self, p) end
+  for _, e in ipairs(self.entities.list) do
+    if e.onGround and not e.dead and (e.isMob or e.type == "item") then redstone.checkPlate(self, e) end
+  end
   if self.mobs then self.mobs.tick(self) end
   self:processScheduled()
   self:randomTicks()

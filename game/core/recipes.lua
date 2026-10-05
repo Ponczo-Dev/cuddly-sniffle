@@ -122,6 +122,19 @@ shaped(id("door_item"), 1, { "##", "##", "##" }, { ["#"] = id("planks") })
 shaped(id("bed_item"), 1, { "WWW", "PPP" }, { W = id("wool"), P = id("planks") })
 shaped(id("jack_o_lantern"), 1, { "P", "T" }, { P = id("pumpkin"), T = id("torch") })
 
+-- redstone i tłoki
+shaped(id("redstone_torch"), 1, { "R", "S" }, { R = id("redstone"), S = S })
+shaped(id("lever"), 1, { "S", "C" }, { S = S, C = id("cobblestone") })
+shaped(id("stone_button"), 1, { "#", "#" }, { ["#"] = id("stone") })
+shaped(id("pressure_plate"), 1, { "##" }, { ["#"] = id("stone") })
+shaped(id("repeater_item"), 1, { "TRT", "###" }, { T = id("redstone_torch"), R = id("redstone"),
+  ["#"] = id("stone") })
+shaped(id("redstone_lamp"), 1, { " R ", "RGR", " R " }, { R = id("redstone"), G = id("glowstone") })
+shaped(id("piston"), 1, { "PPP", "CIC", "CRC" }, { P = id("planks"), C = id("cobblestone"),
+  I = id("iron_ingot"), R = id("redstone") })
+shaped(id("sticky_piston"), 1, { "S", "P" }, { S = id("slimeball"), P = id("piston") })
+shaped(id("fence"), 2, { "SSS", "SSS" }, { S = S })
+
 -- kolorowa wełna z barwników (uproszczone kolory)
 shapeless(id("wool"), 1, { id("wool"), { id = id("dye"), damage = 1 } }, 1)
 

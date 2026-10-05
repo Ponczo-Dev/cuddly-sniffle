@@ -481,6 +481,220 @@ B.define { id = 103, name = "melon", label = "Arbuz", hardness = 1, resistance =
   drops = dropItem(360, 3, 7) }
 
 -- ---------------------------------------------------------------------------
+-- Redstone i tłoki
+-- ---------------------------------------------------------------------------
+-- Wektory "przodu" przekaźnika (0=S, 1=W, 2=N, 3=E) i tłoka (0=dół, 1=góra, 2=N, 3=S, 4=W, 5=E)
+B.FACING4 = { [0] = { 0, 0, 1 }, [1] = { -1, 0, 0 }, [2] = { 0, 0, -1 }, [3] = { 1, 0, 0 } }
+B.FACING6 = { [0] = { 0, -1, 0 }, [1] = { 0, 1, 0 }, [2] = { 0, 0, -1 }, [3] = { 0, 0, 1 },
+  [4] = { -1, 0, 0 }, [5] = { 1, 0, 0 } }
+local FACING6_TO_FACE = { [0] = 4, [1] = 3, [2] = 6, [3] = 5, [4] = 2, [5] = 1 }
+local OPPOSITE_FACE = { 2, 1, 4, 3, 6, 5 }
+-- strona podpory (jak pochodnia): 0 = podłoga, 1 = -X, 2 = +X, 3 = -Z, 4 = +Z
+B.SUPPORT = { [0] = { 0, -1, 0 }, [1] = { -1, 0, 0 }, [2] = { 1, 0, 0 }, [3] = { 0, 0, -1 },
+  [4] = { 0, 0, 1 } }
+
+B.define { id = 55, name = "redstone_wire", label = "Czerwony pyl", solid = false, opaque = false,
+  shape = "box", bounds = box(0, 0, 0, 1, P, 1), hardness = 0, resistance = 0,
+  drops = dropItem(331, 1), redstone = "wire",
+  texFn = (function()
+    local off, on = tiles.get("redstone_dust"), tiles.get("redstone_dust_on")
+    return function(_, meta) return meta > 0 and on or off end
+  end)() }
+
+B.define { id = 75, name = "redstone_torch_off", label = "Pochodnia z czerwonego pylu",
+  tex = "redstone_torch_off", solid = false, opaque = false, shape = "box", bounds = torchBounds,
+  hardness = 0, resistance = 0, drops = dropItem(76, 1), redstone = "torch", icon = "flat" }
+B.define { id = 76, name = "redstone_torch", label = "Pochodnia z czerwonego pylu",
+  tex = "redstone_torch", solid = false, opaque = false, shape = "box", bounds = torchBounds,
+  light = 7, hardness = 0, resistance = 0, redstone = "torch", icon = "flat" }
+
+-- Dźwignia: meta 0-4 = podpora (jak pochodnia), bit 8 = włączona
+local function leverBoxes(meta)
+  local side = meta % 8
+  local on = meta >= 8
+  local t = tiles.get("cobblestone")
+  local h = tiles.get("lever")
+  if side == 0 then
+    return { { 5 * P, 0, 4 * P, 11 * P, 3 * P, 12 * P, tile = t },
+      { 7 * P, 3 * P, (on and 4 or 9) * P, 9 * P, 10 * P, (on and 7 or 12) * P, tile = h } }
+  end
+  local v = B.SUPPORT[side]
+  -- płytka przy ścianie + rączka do góry albo w dół
+  local x0, x1 = 5 * P, 11 * P
+  local z0, z1 = 5 * P, 11 * P
+  if v[1] ~= 0 then x0, x1 = v[1] < 0 and 0 or 13 * P, v[1] < 0 and 3 * P or 1 end
+  if v[3] ~= 0 then z0, z1 = v[3] < 0 and 0 or 13 * P, v[3] < 0 and 3 * P or 1 end
+  local base = { x0, 4 * P, z0, x1, 12 * P, z1, tile = t }
+  local hx0, hx1, hz0, hz1 = 7 * P, 9 * P, 7 * P, 9 * P
+  if v[1] ~= 0 then hx0, hx1 = v[1] < 0 and 3 * P or 7 * P, v[1] < 0 and 9 * P or 13 * P end
+  if v[3] ~= 0 then hz0, hz1 = v[3] < 0 and 3 * P or 7 * P, v[3] < 0 and 9 * P or 13 * P end
+  local hy0, hy1 = on and 9 * P or 3 * P, on and 13 * P or 7 * P
+  return { base, { hx0, hy0, hz0, hx1, hy1, hz1, tile = h } }
+end
+B.define { id = 69, name = "lever", label = "Dzwignia", tex = "lever", solid = false, opaque = false,
+  shape = "box", boxes = leverBoxes, hardness = 0.5, resistance = 0.5, redstone = "lever",
+  icon = "flat",
+  bounds = function(meta)
+    local list = leverBoxes(meta)
+    local a, b = list[1], list[2]
+    return math.min(a[1], b[1]), math.min(a[2], b[2]), math.min(a[3], b[3]),
+      math.max(a[4], b[4]), math.max(a[5], b[5]), math.max(a[6], b[6])
+  end,
+  drops = function() return { { id = 69, count = 1, damage = 0 } } end }
+
+-- Przycisk: meta 1-4 = podpora, bit 8 = wciśnięty
+local function buttonBounds(meta)
+  local v = B.SUPPORT[meta % 8] or B.SUPPORT[1]
+  local d = (meta >= 8) and P or 2 * P
+  local x0, x1, z0, z1 = 5 * P, 11 * P, 5 * P, 11 * P
+  if v[1] ~= 0 then x0, x1 = v[1] < 0 and 0 or 1 - d, v[1] < 0 and d or 1 end
+  if v[3] ~= 0 then z0, z1 = v[3] < 0 and 0 or 1 - d, v[3] < 0 and d or 1 end
+  return x0, 6 * P, z0, x1, 10 * P, z1
+end
+B.define { id = 77, name = "stone_button", label = "Przycisk", tex = "stone_button", solid = false,
+  opaque = false, shape = "box", bounds = buttonBounds, hardness = 0.5, resistance = 0.5,
+  redstone = "button", drops = function() return { { id = 77, count = 1, damage = 0 } } end }
+
+B.define { id = 70, name = "pressure_plate", label = "Plyta naciskowa", tex = "pressure_plate",
+  solid = false, opaque = false, shape = "box", hardness = 0.5, resistance = 0.5,
+  tool = "pickaxe", tier = 0, redstone = "plate",
+  bounds = function(meta)
+    return P, 0, P, 15 * P, (meta > 0) and P / 2 or P, 15 * P
+  end,
+  drops = function() return { { id = 70, count = 1, damage = 0 } } end }
+
+-- Przekaźnik: meta 0-3 = kierunek wyjścia, bity 2-3 = opóźnienie (1..4)
+local function repeaterBoxes(meta, on)
+  local f = B.FACING4[meta % 4]
+  local delay = math.floor(meta / 4) % 4
+  local top = tiles.get(on and "repeater_on" or "repeater")
+  local torch = tiles.get(on and "redstone_torch" or "redstone_torch_off")
+  local list = { { 0, 0, 0, 1, 2 * P, 1, tile = nil } }
+  -- pochodnia z przodu (stała) i z tyłu (zależna od opóźnienia)
+  local function tb(offset)
+    local cx, cz = 0.5 + f[1] * offset, 0.5 + f[3] * offset
+    return { cx - P, 2 * P, cz - P, cx + P, 7 * P, cz + P, tile = torch }
+  end
+  list[2] = tb(5 * P)
+  list[3] = tb(-1 * P - delay * 2 * P)
+  local _ = top
+  return list
+end
+for _, on in ipairs({ false, true }) do
+  B.define { id = on and 94 or 93, name = on and "repeater_on" or "repeater",
+    label = "Przekaznik", opaque = false, shape = "box", layer = "opaque",
+    bounds = box(0, 0, 0, 1, 2 * P, 1), hardness = 0, resistance = 0, redstone = "repeater",
+    light = on and 7 or 0,
+    boxes = function(meta) return repeaterBoxes(meta, on) end,
+    texFn = (function()
+      local top = tiles.get(on and "repeater_on" or "repeater")
+      local side = tiles.get("slab_side")
+      return function(face) return face == 3 and top or side end
+    end)(),
+    drops = function() return { { id = 356, count = 1, damage = 0 } } end }
+end
+
+B.define { id = 123, name = "redstone_lamp", label = "Lampa", tex = "redstone_lamp", hardness = 0.3,
+  resistance = 0.3, redstone = "lamp" }
+B.define { id = 124, name = "redstone_lamp_on", label = "Lampa (wl.)", tex = "redstone_lamp_on",
+  hardness = 0.3, resistance = 0.3, light = 15, redstone = "lamp",
+  drops = function() return { { id = 123, count = 1, damage = 0 } } end }
+
+-- Tłok: meta 0-5 = kierunek, bit 8 = wysunięty
+local function pistonTex(sticky)
+  local front = tiles.get(sticky and "piston_top_sticky" or "piston_top")
+  local inner, back, side = tiles.get("piston_inner"), tiles.get("piston_bottom"), tiles.get("piston_side")
+  return function(face, meta)
+    local f = FACING6_TO_FACE[meta % 8] or 3
+    if face == f then return meta >= 8 and inner or front end
+    if face == OPPOSITE_FACE[f] then return back end
+    return side
+  end
+end
+local function pistonBounds(meta)
+  if meta < 8 then return 0, 0, 0, 1, 1, 1 end
+  local v = B.FACING6[meta % 8] or B.FACING6[1]
+  local x0, y0, z0, x1, y1, z1 = 0, 0, 0, 1, 1, 1
+  if v[1] > 0 then x1 = 12 * P elseif v[1] < 0 then x0 = 4 * P end
+  if v[2] > 0 then y1 = 12 * P elseif v[2] < 0 then y0 = 4 * P end
+  if v[3] > 0 then z1 = 12 * P elseif v[3] < 0 then z0 = 4 * P end
+  return x0, y0, z0, x1, y1, z1
+end
+for _, sticky in ipairs({ false, true }) do
+  B.define { id = sticky and 29 or 33, name = sticky and "sticky_piston" or "piston",
+    label = sticky and "Lepki tlok" or "Tlok", opaque = false, opacity = 15, layer = "opaque",
+    shape = "box", bounds = pistonBounds, hardness = 0.5, resistance = 0.5, redstone = "piston",
+    sticky = sticky, texFn = pistonTex(sticky),
+    drops = function() return { { id = sticky and 29 or 33, count = 1, damage = 0 } } end }
+end
+B.pistonBounds = pistonBounds
+
+-- Głowica tłoka: meta 0-5 = kierunek, bit 8 = lepka
+local function headBoxes(meta)
+  local v = B.FACING6[meta % 8] or B.FACING6[1]
+  local face = tiles.get(meta >= 8 and "piston_top_sticky" or "piston_top")
+  local side = tiles.get("piston_side")
+  local function span(c, lo, hi)
+    if c > 0 then return lo, hi elseif c < 0 then return 1 - hi, 1 - lo end
+    return nil
+  end
+  local px0, px1 = span(v[1], 12 * P, 1)
+  local py0, py1 = span(v[2], 12 * P, 1)
+  local pz0, pz1 = span(v[3], 12 * P, 1)
+  local plate = { px0 or 0, py0 or 0, pz0 or 0, px1 or 1, py1 or 1, pz1 or 1, tile = face }
+  local ax0, ax1 = span(v[1], -4 * P, 12 * P)
+  local ay0, ay1 = span(v[2], -4 * P, 12 * P)
+  local az0, az1 = span(v[3], -4 * P, 12 * P)
+  local arm = { ax0 or 6 * P, ay0 or 6 * P, az0 or 6 * P, ax1 or 10 * P, ay1 or 10 * P, az1 or 10 * P,
+    tile = side }
+  -- ramię nie może wychodzić poza blok w rysowaniu - przycinamy do 0..1
+  for i = 1, 6 do
+    if arm[i] < 0 then arm[i] = 0 end
+    if arm[i] > 1 then arm[i] = 1 end
+  end
+  return { plate, arm }
+end
+B.define { id = 34, name = "piston_head", label = "Glowica tloka", opaque = false, opacity = 0,
+  layer = "opaque", shape = "box", boxes = headBoxes, hardness = 0.5, resistance = 0.5,
+  tex = "piston_top", drops = function() return nil end, redstone = "head",
+  bounds = function(meta)
+    local list = headBoxes(meta)
+    local a, b = list[1], list[2]
+    return math.min(a[1], b[1]), math.min(a[2], b[2]), math.min(a[3], b[3]),
+      math.max(a[4], b[4]), math.max(a[5], b[5]), math.max(a[6], b[6])
+  end }
+
+-- Płotek: bity meta = połączenia (1 = +X, 2 = -X, 4 = +Z, 8 = -Z)
+local function fenceBoxes(meta)
+  local list = { { 6 * P, 0, 6 * P, 10 * P, 1, 10 * P } }
+  local function bar(x0, z0, x1, z1)
+    list[#list + 1] = { x0, 12 * P, z0, x1, 15 * P, z1 }
+    list[#list + 1] = { x0, 6 * P, z0, x1, 9 * P, z1 }
+  end
+  if meta % 2 == 1 then bar(10 * P, 7 * P, 1, 9 * P) end
+  if math.floor(meta / 2) % 2 == 1 then bar(0, 7 * P, 6 * P, 9 * P) end
+  if math.floor(meta / 4) % 2 == 1 then bar(7 * P, 10 * P, 9 * P, 1) end
+  if math.floor(meta / 8) % 2 == 1 then bar(7 * P, 0, 9 * P, 6 * P) end
+  return list
+end
+local function fenceBounds(meta)
+  local x0, z0, x1, z1 = 6 * P, 6 * P, 10 * P, 10 * P
+  if meta % 2 == 1 then x1 = 1 end
+  if math.floor(meta / 2) % 2 == 1 then x0 = 0 end
+  if math.floor(meta / 4) % 2 == 1 then z1 = 1 end
+  if math.floor(meta / 8) % 2 == 1 then z0 = 0 end
+  return x0, 0, z0, x1, 1, z1
+end
+B.define { id = 85, name = "fence", label = "Plotek", tex = "planks", opaque = false, shape = "box",
+  layer = "opaque", boxes = fenceBoxes, bounds = fenceBounds, hardness = 2, resistance = 3,
+  tool = "axe", flammable = true, fence = true,
+  collisionBounds = function(meta)
+    local x0, y0, z0, x1, _, z1 = fenceBounds(meta)
+    return x0, y0, z0, x1, 1.5, z1
+  end,
+  drops = function() return { { id = 85, count = 1, damage = 0 } } end }
+
+-- ---------------------------------------------------------------------------
 -- Szybkie tablice właściwości (indeks = id, 0..255) dla meshera i fizyki
 -- ---------------------------------------------------------------------------
 B.OPAQUE = {}   -- 1 = pełny nieprzezroczysty sześcian

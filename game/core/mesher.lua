@@ -221,8 +221,7 @@ end
 -- ---------------------------------------------------------------------------
 -- Prostopadłościan (płyta, pochodnia, drzwi, kaktus...) - bez AO
 -- ---------------------------------------------------------------------------
-local function meshBox(buf, def, id, meta, p, x, y, z)
-  local x0, y0, z0, x1, y1, z1 = blocks.bounds(def, meta)
+local function meshOneBox(buf, def, meta, p, x, y, z, x0, y0, z0, x1, y1, z1, tileOverride)
   local sx, sy, sz = x1 - x0, y1 - y0, z1 - z0
   for f = 1, 6 do
     local F = FACES[f]
@@ -244,7 +243,7 @@ local function meshBox(buf, def, id, meta, p, x, y, z)
         if b2 > b then b = b2 end
       end
       for k = 1, 4 do cs[k], cb[k], ca[k] = s, b, 3 end
-      local t = blocks.faceTile(def, f, meta)
+      local t = tileOverride or blocks.faceTile(def, f, meta)
       local tu = (t % 16) * TILE
       local tv = floor(t / 16) * TILE
       -- UV z faktycznej pozycji narożnika (fragment tekstury jak w MC)
@@ -263,6 +262,20 @@ local function meshBox(buf, def, id, meta, p, x, y, z)
       end
     end
   end
+end
+
+-- Blok z jednego albo kilku prostopadłościanów (def.boxes: tłok, płotek, dźwignia)
+local function meshBox(buf, def, id, meta, p, x, y, z)
+  if def.boxes then
+    local list = def.boxes(meta)
+    for i = 1, #list do
+      local bx = list[i]
+      meshOneBox(buf, def, meta, p, x, y, z, bx[1], bx[2], bx[3], bx[4], bx[5], bx[6], bx.tile)
+    end
+    return
+  end
+  local x0, y0, z0, x1, y1, z1 = blocks.bounds(def, meta)
+  meshOneBox(buf, def, meta, p, x, y, z, x0, y0, z0, x1, y1, z1)
 end
 
 -- ---------------------------------------------------------------------------
