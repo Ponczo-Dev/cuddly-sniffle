@@ -139,6 +139,16 @@ function M.setListener(x, y, z, fx, fy, fz)
   love.audio.setOrientation(fx, fy, fz, 0, 1, 0)
 end
 
+-- Dźwięk "przy uchu" (bez pozycji). Pozycję da się ustawić tylko dla
+-- dźwięków mono; stereo LÖVE i tak gra bez przestrzeni (setRelative by
+-- rzuciło błędem).
+local function headRelative(src)
+  if src:getChannelCount() == 1 then
+    src:setRelative(true)
+    src:setPosition(0, 0, 0)
+  end
+end
+
 local function playList(list, x, y, z, vol, pitch)
   if not enabled or volume <= 0 then return end
   local e = randomEntry(list)
@@ -156,8 +166,7 @@ local function playList(list, x, y, z, vol, pitch)
     c:setPosition(x, y, z)
     c:setAttenuationDistances(2, 24)
   else
-    c:setRelative(true)
-    c:setPosition(0, 0, 0)
+    headRelative(c)
   end
   c:play()
   active[#active + 1] = c
@@ -215,7 +224,7 @@ function M.setRain(strength)
       if not s then return end
       rainSource = s:clone()
       rainSource:setLooping(true)
-      rainSource:setRelative(true)
+      headRelative(rainSource)
       rainSource:play()
     end
     rainSource:setVolume(strength * 0.5)
@@ -254,7 +263,7 @@ function M.updateMusic(dt, context)
     return fd and love.audio.newSource(love.sound.newDecoder(fd), "stream")
   end)
   if ok and src then
-    src:setRelative(true)
+    headRelative(src)
     src:setVolume(musicVolume)
     src:play()
     music.source = src
