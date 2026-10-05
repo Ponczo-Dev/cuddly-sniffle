@@ -1,0 +1,8 @@
+# Binarki LOVE i Lua trzyma kazdy lokalnie (instrukcje w PRZECZYTAJ.txt)
+love/*
+!love/PRZECZYTAJ.txt
+lua/*
+!lua/PRZECZYTAJ.txt
+
+# Kopie zapasowe faz
+*.zip
