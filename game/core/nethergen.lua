@@ -103,6 +103,8 @@ function Gen:generate(chunk)
             for d = 0, 2 do
               if chunk:get(lx, y - d, lz) == NETHERRACK then chunk:setRaw(lx, y - d, lz, SOUL_SAND, 0) end
             end
+            -- kępki brodawek netherowych na piasku dusz
+            if n > 0.55 and rng:chance(0.08) then chunk:setRaw(lx, y + 1, lz, 115, rng:int(1, 3)) end
           elseif n < -0.55 and y <= 34 then
             chunk:setRaw(lx, y, lz, GRAVEL, 0)
           end

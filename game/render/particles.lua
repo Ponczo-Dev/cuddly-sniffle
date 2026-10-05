@@ -89,7 +89,7 @@ function M.blockHit(x, y, z, id, face)
   end
 end
 
-function M.burst(kind, x, y, z, n)
+function M.burst(kind, x, y, z, n, color)
   n = n or 8
   for _ = 1, n do
     local p = { x = x + (math.random() - 0.5) * 0.6, y = y + (math.random() - 0.5) * 0.6,
@@ -122,6 +122,17 @@ function M.burst(kind, x, y, z, n)
       p.r, p.g, p.b, p.gravity, p.size, p.life = 1, 1, 1, 0.04, 0.07, 15
     elseif kind == "fire_small" then
       p.r, p.g, p.b, p.gravity, p.size, p.life = 1, 0.5, 0.1, -0.006, 0.1, 12
+    elseif kind == "magic_crit" then
+      p.r, p.g, p.b, p.gravity, p.size, p.life = 0.4, 0.8, 1, 0.02, 0.07, 15
+      p.vx, p.vy, p.vz = p.vx * 4, p.vy * 3, p.vz * 4
+    elseif kind == "enchant" then
+      p.r, p.g, p.b, p.gravity, p.size, p.life = 0.8, 0.85, 1, -0.003, 0.05, 30
+      p.vx, p.vy, p.vz = (math.random() - 0.5) * 0.04, 0.01, (math.random() - 0.5) * 0.04
+    elseif kind == "potion" or kind == "swirl" then
+      local c = color or { 200, 100, 200 }
+      p.r, p.g, p.b = c[1] / 255, c[2] / 255, c[3] / 255
+      p.gravity, p.size, p.life = -0.004, 0.09, kind == "swirl" and 20 or 25
+      if kind == "potion" then p.vx, p.vy, p.vz = p.vx * 3, p.vy * 2, p.vz * 3 end
     end
     M.add(p)
   end

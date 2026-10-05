@@ -743,6 +743,131 @@ B.define { id = 28, name = "detector_rail", label = "Tory z czujnikiem", tex = "
   drops = function() return { { id = 28, count = 1, damage = 0 } } end }
 
 -- ---------------------------------------------------------------------------
+-- Zaklinanie i alchemia
+-- ---------------------------------------------------------------------------
+B.define { id = 116, name = "enchanting_table", label = "Stol do zaklinania", opaque = false,
+  opacity = 0, layer = "opaque", shape = "box", bounds = box(0, 0, 0, 1, 12 * P, 1), hardness = 5,
+  resistance = 1200, tool = "pickaxe", tier = 0, light = 7,
+  tex = { top = "enchanting_top", side = "enchanting_side", bottom = "enchanting_bottom" } }
+
+-- Statyw alchemiczny: podstawa i pręt; zawartość w danych bloku (3 butelki + składnik)
+B.define { id = 117, name = "brewing_stand", label = "Statyw alchemiczny", opaque = false,
+  opacity = 0, layer = "cutout", shape = "box", hardness = 0.5, resistance = 0.5,
+  tool = "pickaxe", tex = "brewing_stand", light = 1, tileEntity = "brewing",
+  bounds = box(1 * P, 0, 1 * P, 15 * P, 14 * P, 15 * P),
+  boxes = (function()
+    local base, rod = tiles.get("brewing_base"), tiles.get("brewing_stand")
+    local list = {
+      { 1 * P, 0, 1 * P, 15 * P, 2 * P, 15 * P, tile = base },
+      { 7 * P, 2 * P, 7 * P, 9 * P, 14 * P, 9 * P, tile = rod },
+      { 2 * P, 2 * P, 3 * P, 5 * P, 9 * P, 6 * P, tile = rod },
+      { 11 * P, 2 * P, 3 * P, 14 * P, 9 * P, 6 * P, tile = rod },
+      { 6.5 * P, 2 * P, 11 * P, 9.5 * P, 9 * P, 14 * P, tile = rod },
+    }
+    return function() return list end
+  end)(),
+  drops = function() return { { id = 379, count = 1, damage = 0 } } end }
+
+-- Kocioł: meta 0..3 = poziom wody
+local function cauldronBoxes(meta)
+  local side, inner = tiles.get("cauldron"), tiles.get("cauldron_inner")
+  local list = {
+    { 0, 3 * P, 0, 1, 5 * P, 1, tile = inner },
+    { 0, 5 * P, 0, 2 * P, 1, 1, tile = side }, { 14 * P, 5 * P, 0, 1, 1, 1, tile = side },
+    { 2 * P, 5 * P, 0, 14 * P, 1, 2 * P, tile = side }, { 2 * P, 5 * P, 14 * P, 14 * P, 1, 1, tile = side },
+    { 0, 0, 0, 4 * P, 3 * P, 4 * P, tile = side }, { 12 * P, 0, 0, 1, 3 * P, 4 * P, tile = side },
+    { 0, 0, 12 * P, 4 * P, 3 * P, 1, tile = side }, { 12 * P, 0, 12 * P, 1, 3 * P, 1, tile = side },
+  }
+  if meta > 0 then
+    list[#list + 1] = { 2 * P, 5 * P, 2 * P, 14 * P, (6 + meta * 3) * P, 14 * P, tile = tiles.get("water") }
+  end
+  return list
+end
+B.define { id = 118, name = "cauldron", label = "Kociol", opaque = false, opacity = 0,
+  layer = "opaque", shape = "box", boxes = cauldronBoxes, bounds = box(0, 0, 0, 1, 1, 1),
+  hardness = 2, resistance = 2, tool = "pickaxe", tier = 0, tex = "cauldron",
+  drops = function() return { { id = 380, count = 1, damage = 0 } } end }
+
+-- Brodawka netherowa: rośnie na piasku dusz, meta 0..3
+B.define { id = 115, name = "nether_wart", label = "Brodawka netherowa", solid = false, opaque = false,
+  shape = "cross", hardness = 0, resistance = 0, tex = "nether_wart_0", silkDrop = false,
+  bounds = box(0, 0, 0, 1, 4 * P, 1),
+  texFn = (function()
+    local t = { tiles.get("nether_wart_0"), tiles.get("nether_wart_1"), tiles.get("nether_wart_1"),
+      tiles.get("nether_wart_2") }
+    return function(_, meta) return t[(meta % 4) + 1] end
+  end)(),
+  drops = function(meta, rng)
+    local n = meta >= 3 and rng:int(2, 4) or 1
+    return { { id = 372, count = n, damage = 0 } }
+  end }
+
+-- ---------------------------------------------------------------------------
+-- Twierdza i End
+-- ---------------------------------------------------------------------------
+B.define { id = 119, name = "end_portal", label = "Portal Endu", tex = "end_portal", solid = false,
+  opaque = false, shape = "box", layer = "opaque", opacity = 0, light = 15, hardness = -1,
+  resistance = 3600000, selectable = false, drops = dropNothing, bounds = box(0, 0, 0, 1, 12 * P, 1),
+  boxes = (function()
+    local t = tiles.get("end_portal")
+    local list = { { 0, 11 * P, 0, 1, 12 * P, 1, tile = t } }
+    return function() return list end
+  end)() }
+
+-- Rama portalu Endu: meta 0-3 = kierunek, +4 = z okiem Endu
+local function frameBoxes(meta)
+  local top, side, bottom = tiles.get("end_portal_frame"), tiles.get("end_portal_frame_side"),
+    tiles.get("end_stone")
+  local list = { { 0, 0, 0, 1, 13 * P, 1, tiles = { side, side, top, bottom, side, side } } }
+  if meta >= 4 then
+    local eye = tiles.get("ender_eye")
+    list[2] = { 4 * P, 13 * P, 4 * P, 12 * P, 1, 12 * P, tile = eye }
+  end
+  return list
+end
+B.define { id = 120, name = "end_portal_frame", label = "Rama portalu Endu", opaque = false,
+  opacity = 15, layer = "opaque", shape = "box", boxes = frameBoxes, hardness = -1,
+  resistance = 3600000, tex = { top = "end_portal_frame", side = "end_portal_frame_side",
+    bottom = "end_stone" }, light = 1, drops = dropNothing,
+  bounds = function(meta) return 0, 0, 0, 1, meta >= 4 and 1 or 13 * P, 1 end }
+
+B.define { id = 121, name = "end_stone", label = "Kamien Endu", tex = "end_stone", hardness = 3,
+  resistance = 15, tool = "pickaxe", tier = 0 }
+
+B.define { id = 122, name = "dragon_egg", label = "Jajo smoka", opaque = false, opacity = 0,
+  layer = "opaque", shape = "box", tex = "dragon_egg", hardness = 3, resistance = 15, light = 1,
+  bounds = box(P, 0, P, 15 * P, 1, 15 * P),
+  boxes = (function()
+    local t = tiles.get("dragon_egg")
+    local list = {
+      { 6 * P, 15 * P, 6 * P, 10 * P, 1, 10 * P, tile = t },
+      { 5 * P, 14 * P, 5 * P, 11 * P, 15 * P, 11 * P, tile = t },
+      { 4 * P, 13 * P, 4 * P, 12 * P, 14 * P, 12 * P, tile = t },
+      { 3 * P, 11 * P, 3 * P, 13 * P, 13 * P, 13 * P, tile = t },
+      { 2 * P, 8 * P, 2 * P, 14 * P, 11 * P, 14 * P, tile = t },
+      { 1 * P, 3 * P, 1 * P, 15 * P, 8 * P, 15 * P, tile = t },
+      { 2 * P, 1 * P, 2 * P, 14 * P, 3 * P, 14 * P, tile = t },
+      { 3 * P, 0, 3 * P, 13 * P, 1 * P, 13 * P, tile = t },
+    }
+    return function() return list end
+  end)() }
+
+-- Warianty cegieł do twierdzy (zwykłe cegły to blok 98)
+B.define { id = 97, name = "mossy_stone_bricks", label = "Omszale kamienne cegly",
+  tex = "stone_bricks_mossy", hardness = 1.5, resistance = 6, tool = "pickaxe", tier = 0 }
+B.define { id = 99, name = "cracked_stone_bricks", label = "Popekane kamienne cegly",
+  tex = "stone_bricks_cracked", hardness = 1.5, resistance = 6, tool = "pickaxe", tier = 0 }
+B.define { id = 101, name = "iron_bars", label = "Krata", opaque = false, opacity = 0,
+  layer = "cutout", shape = "box", tex = "iron_bars", hardness = 5, resistance = 6,
+  tool = "pickaxe", tier = 0, bounds = box(0, 0, 7 * P, 1, 1, 9 * P),
+  boxes = (function()
+    local t = tiles.get("iron_bars")
+    local list = { { 0, 0, 7.5 * P, 1, 1, 8.5 * P, tile = t }, { 7.5 * P, 0, 0, 8.5 * P, 1, 1, tile = t } }
+    return function() return list end
+  end)(),
+  collisionBounds = function() return 0, 0, 6 * P, 1, 1, 10 * P end }
+
+-- ---------------------------------------------------------------------------
 -- Szybkie tablice właściwości (indeks = id, 0..255) dla meshera i fizyki
 -- ---------------------------------------------------------------------------
 B.OPAQUE = {}   -- 1 = pełny nieprzezroczysty sześcian

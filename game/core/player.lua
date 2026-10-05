@@ -161,6 +161,7 @@ function Player:tickWalking(world, forward, strafe)
     accel = 0.02
   end
   if self.sprinting then accel = accel * 1.3 end
+  if self.speedMul then accel = accel * self.speedMul end
   self:moveRelative(strafe, forward, accel)
 
   local climbing = physics.onClimbable(world, self)

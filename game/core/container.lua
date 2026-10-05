@@ -42,6 +42,7 @@ M.getSlot, M.putSlot = get, put
 -- Czy slot przyjmie dany stos
 function Container:accepts(s, stack)
   if s.group == "result" or s.group == "output" then return false end
+  if s.accept then return s.accept(stack) and true or false end
   if s.group == "armor" then
     local d = items.get(stack.id)
     return d and d.armor and d.armor.slot == s.armor or false
@@ -55,6 +56,7 @@ end
 local function maxFor(s, stack)
   local m = items.maxStack(stack.id)
   if s.group == "armor" then m = 1 end
+  if s.max and s.max < m then m = s.max end
   return m
 end
 
@@ -95,10 +97,10 @@ function Container:moveToGroups(stack, groups, reverse)
       end
     end
   end
-  local max = items.maxStack(stack.id)
   for _, s in ipairs(list) do
     if stack.count <= 0 then break end
     local cur = get(s)
+    local max = maxFor(s, stack)
     if cur and items.canMerge(cur, stack) and cur.count < max and self:accepts(s, stack) then
       local n = math.min(max - cur.count, stack.count)
       cur.count = cur.count + n
@@ -110,7 +112,7 @@ function Container:moveToGroups(stack, groups, reverse)
     if stack.count <= 0 then break end
     if not get(s) and self:accepts(s, stack) then
       local n = math.min(maxFor(s, stack), stack.count)
-      put(s, { id = stack.id, count = n, damage = stack.damage or 0 })
+      put(s, { id = stack.id, count = n, damage = stack.damage or 0, ench = stack.ench })
       stack.count = stack.count - n
     end
   end
@@ -151,13 +153,13 @@ function Container:click(n, button, shift)
       while get(s) and guard < 64 do
         guard = guard + 1
         local r = get(s)
-        local copy = { id = r.id, count = r.count, damage = r.damage }
+        local copy = { id = r.id, count = r.count, damage = r.damage, ench = r.ench }
         local left = self:moveToGroups(copy, { "hotbar", "main" }, true)
         if left > 0 then
           -- nie zmieściło się: cofamy częściowe dodanie nie jest potrzebne,
           -- bo moveToGroups dodaje tylko to, co się mieści - resztę wyrzucamy
           if self.opts.onOverflow then
-            self.opts.onOverflow({ id = r.id, count = left, damage = r.damage })
+            self.opts.onOverflow({ id = r.id, count = left, damage = r.damage, ench = r.ench })
           end
         end
         self:consumeIngredients()
@@ -168,7 +170,7 @@ function Container:click(n, button, shift)
       return
     end
     if not cursor then
-      self.cursor = { id = stack.id, count = stack.count, damage = stack.damage }
+      self.cursor = { id = stack.id, count = stack.count, damage = stack.damage, ench = stack.ench }
     elseif items.canMerge(cursor, stack) and cursor.count + stack.count <= items.maxStack(stack.id) then
       cursor.count = cursor.count + stack.count
     else
@@ -184,7 +186,7 @@ function Container:click(n, button, shift)
   if s.group == "output" then
     if not stack then return end
     if shift then
-      local left = self:moveToGroups({ id = stack.id, count = stack.count, damage = stack.damage },
+      local left = self:moveToGroups({ id = stack.id, count = stack.count, damage = stack.damage, ench = stack.ench },
         { "hotbar", "main" }, true)
       if self.opts.onTake then self.opts.onTake(s, stack.count - left) end
       if left > 0 then stack.count = left; s.inv.changed = true else put(s, nil) end
@@ -227,7 +229,7 @@ function Container:click(n, button, shift)
           put(s, cursor)
           self.cursor = nil
         else
-          put(s, { id = cursor.id, count = max, damage = cursor.damage })
+          put(s, { id = cursor.id, count = max, damage = cursor.damage, ench = cursor.ench })
           cursor.count = cursor.count - max
         end
       end
@@ -246,13 +248,13 @@ function Container:click(n, button, shift)
     if not cursor then
       if stack then
         local half = math.ceil(stack.count / 2)
-        self.cursor = { id = stack.id, count = half, damage = stack.damage }
+        self.cursor = { id = stack.id, count = half, damage = stack.damage, ench = stack.ench }
         stack.count = stack.count - half
         if stack.count <= 0 then put(s, nil) else s.inv.changed = true end
       end
     elseif not stack then
       if self:accepts(s, cursor) then
-        put(s, { id = cursor.id, count = 1, damage = cursor.damage })
+        put(s, { id = cursor.id, count = 1, damage = cursor.damage, ench = cursor.ench })
         cursor.count = cursor.count - 1
         if cursor.count <= 0 then self.cursor = nil end
       end
@@ -297,7 +299,7 @@ function Container:distribute(list, button)
     local k = math.min(per, max - have, cursor.count)
     if k > 0 then
       if st then st.count = st.count + k; s.inv.changed = true
-      else put(s, { id = cursor.id, count = k, damage = cursor.damage }) end
+      else put(s, { id = cursor.id, count = k, damage = cursor.damage, ench = cursor.ench }) end
       cursor.count = cursor.count - k
       if s.group == "craft" then craftChanged = true end
     end
@@ -316,6 +318,13 @@ function Container:close(giveBack)
       if st then giveBack(st); put(s, nil) end
     end
     if self.byGroup.result then put(self.byGroup.result[1], nil) end
+  end
+  -- sloty tymczasowe (np. przedmiot na stole do zaklinania)
+  for _, s in ipairs(self.slots) do
+    if s.temp then
+      local st = get(s)
+      if st then giveBack(st); put(s, nil) end
+    end
   end
   if self.cursor then
     giveBack(self.cursor)

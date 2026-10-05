@@ -21,6 +21,7 @@ local lighting = require("core.lighting")
 local survival = require("core.survival")
 local mobs = require("core.mobs")
 local save = require("core.save")
+local potions = require("core.potions")
 
 local M = {}
 
@@ -258,7 +259,7 @@ end
 
 -- Dodaje do ekwipunku (hotbar najpierw). Zwraca liczbę, która się nie zmieściła.
 function Game:addToInventory(stack)
-  local copy = { id = stack.id, count = stack.count, damage = stack.damage or 0 }
+  local copy = { id = stack.id, count = stack.count, damage = stack.damage or 0, ench = stack.ench }
   -- serwer: przedmiot podnosi gość (podmieniony kontekst gracza)
   if self.remoteCtx then return self.remoteCtx.server:giveTo(self.remoteCtx, copy) end
   return self.inventory:add(copy)
@@ -269,7 +270,7 @@ function Game:giveItem(stack)
   local left = self:addToInventory(stack)
   if left > 0 then
     local p = self.player
-    self:dropStack(p.x, p.y + 1.2, p.z, { id = stack.id, count = left, damage = stack.damage })
+    self:dropStack(p.x, p.y + 1.2, p.z, { id = stack.id, count = left, damage = stack.damage, ench = stack.ench })
   end
 end
 
@@ -290,7 +291,7 @@ function Game:throwFromHand(all)
   local p = self.player
   local lx, ly, lz = p:lookVector()
   local ex, ey, ez = p:eyePosition()
-  local e = entities.newItem(ex, ey - 0.3, ez, { id = s.id, count = n, damage = s.damage },
+  local e = entities.newItem(ex, ey - 0.3, ez, { id = s.id, count = n, damage = s.damage, ench = s.ench },
     lx * 0.3, ly * 0.3 + 0.1, lz * 0.3)
   e.pickupDelay = 40
   self.entities:add(e)
@@ -384,7 +385,17 @@ function Game:breakBlock(x, y, z, byPlayer)
   if drop then
     local list
     local heldDef = held and items.get(held.id)
-    if id == 18 and heldDef and heldDef.toolType == "shears" then
+    local enchant = require("core.enchant")
+    local silk = enchant.level(held, "silk_touch") > 0
+    if silk and def.silkDrop ~= false and not def.tileEntity and id ~= 26 and id ~= 64
+      and id ~= 59 and def.shape ~= "liquid" then
+      -- Jedwabny dotyk: sam blok (ruda, szkło, trawa, lód...)
+      local dmg = 0
+      if def.metaMask and def.metaMask > 0 then dmg = meta % (def.metaMask + 1) end
+      local bid = id
+      if id == 74 then bid = 73 end -- świecąca ruda redstone
+      list = { { id = bid, count = 1, damage = dmg } }
+    elseif id == 18 and heldDef and heldDef.toolType == "shears" then
       list = { { id = 18, count = 1, damage = meta % 4 } }
     elseif id == 31 and heldDef and heldDef.toolType == "shears" then
       list = { { id = 31, count = 1, damage = 0 } }
@@ -395,10 +406,14 @@ function Game:breakBlock(x, y, z, byPlayer)
       if def.metaMask and def.metaMask > 0 then dmg = meta % (def.metaMask + 1) end
       list = { { id = id, count = 1, damage = dmg } }
     end
+    -- Szczęście: więcej surowców z rud (węgiel, diament, lapis, redstone)
+    if not silk and def.xp and enchant.level(held, "fortune") > 0 then
+      for _, s in ipairs(list or {}) do s.count = enchant.fortuneCount(held, s.count, self.rng) end
+    end
     for _, s in ipairs(list or {}) do
       if s.count > 0 then self:dropStack(x + 0.5, y + 0.3, z + 0.5, s) end
     end
-    if byPlayer and def.xp then
+    if byPlayer and def.xp and not silk then
       local v = self.rng:int(def.xp[1], def.xp[2])
       if v > 0 then self:spawnXp(x + 0.5, y + 0.5, z + 0.5, v) end
     end
@@ -530,6 +545,8 @@ function Game:createTile(x, y, z, kind)
   elseif kind == "furnace" then
     tile = { kind = "furnace", inventory = Inventory.new(3), burn = 0, burnMax = 0, cook = 0,
       xp = 0 }
+  elseif kind == "brewing" then
+    tile = { kind = "brewing", inventory = Inventory.new(4), brew = 0 }
   end
   if tile then self.world:setTile(x, y, z, tile) end
   return tile
@@ -588,6 +605,28 @@ function Game:useItem(hit)
     return vehicles.placeFromItem(self, vh, stack.id)
   end
   if d.toolType == "sword" then return self.survival.startBlocking(self) end
+  if d.use == "potion" then
+    local _, _, splash = potions.decode(stack.damage)
+    if splash then
+      potions.throw(self, stack.damage)
+      self:consumeHeld(1)
+      return true
+    end
+    return self.survival.startDrinking(self)
+  end
+  if d.use == "bottle" then return self:fillBottle() end
+  if d.use == "eye" then
+    if hit and hit.id == 120 then return false end
+    return require("core.endportal").throwEye(self)
+  end
+  if d.use == "map" then
+    local id = require("core.maps").create(self)
+    if not id then return false end
+    if p.gameMode ~= "creative" then self.inventory:decrement(self.selected, 1) end
+    self:giveItem({ id = 358, count = 1, damage = id })
+    self:emit("sound", "paper", p.x, p.y + 1, p.z)
+    return true
+  end
   if d.use == "throw" then
     if self.mobs then self.mobs.throwItem(self, stack.id) end
     self:consumeHeld(1)
@@ -687,6 +726,23 @@ function Game:useBucket(stack, d)
   return true
 end
 
+-- Szklana butelka: nabieranie wody ze źródła
+function Game:fillBottle()
+  local p = self.player
+  local ex, ey, ez = p:eyePosition()
+  local lx, ly, lz = p:lookVector()
+  local hit = raycast.cast(self.world, ex, ey, ez, lx, ly, lz, self:reach(), function(def, _, meta)
+    return def.liquid ~= nil or def.selectable
+  end)
+  if hit and hit.id == 8 or (hit and hit.id == 9) then
+    if p.gameMode ~= "creative" then self.inventory:decrement(self.selected, 1) end
+    self:giveItem({ id = 373, count = 1, damage = 0 })
+    self:emit("sound", "bucket", hit.x + 0.5, hit.y + 0.5, hit.z + 0.5)
+    return true
+  end
+  return false
+end
+
 -- Mączka kostna: natychmiastowy wzrost
 function Game:applyBoneMeal(x, y, z)
   local world = self.world
@@ -774,7 +830,8 @@ function Game:tickInteraction()
       end
       if self.breakCooldown == 0 then
         local def = defs[hit.id]
-        local s = items.breakStrength(self:heldStack(), def, p.onGround, p.headInWater)
+        local aqua = require("core.enchant").level(self.armor.slots[1], "aqua_affinity") > 0
+        local s = items.breakStrength(self:heldStack(), def, p.onGround, p.headInWater and not aqua)
         m.progress = m.progress + s
         m.ticks = m.ticks + 1
         if m.ticks % 4 == 1 then self:emit("hit", hit.x, hit.y, hit.z, hit.id, hit.face) end
@@ -1062,6 +1119,9 @@ function Game:tickTiles()
         local lx, lz = idx % 16, floor(idx / 16) % 16
         local y = floor(idx / 256)
         furnaces.tick(self, tile, c.cx * 16 + lx, y, c.cz * 16 + lz)
+      elseif tile.kind == "brewing" then
+        local lx, lz = idx % 16, floor(idx / 16) % 16
+        potions.tickStand(self, tile, c.cx * 16 + lx, floor(idx / 256), c.cz * 16 + lz)
       end
     end
   end

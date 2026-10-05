@@ -73,7 +73,7 @@ local function encodeTiles(chunk)
       e.pending = {}
       for i, s in pairs(t.pendingSlots) do e.pending[#e.pending + 1] = { i, s.id, s.count, s.damage } end
     end
-    e.burn, e.burnMax, e.cook, e.xp = t.burn, t.burnMax, t.cook, t.xp
+    e.burn, e.burnMax, e.cook, e.xp, e.brew = t.burn, t.burnMax, t.cook, t.xp, t.brew
     e.mob, e.delay = t.mob, t.delay
     out[#out + 1] = e
   end
@@ -84,7 +84,7 @@ local function decodeTiles(chunk, list)
   for _, e in ipairs(list or {}) do
     local t = { kind = e.kind }
     if e.inv then
-      t.inventory = Inventory.new(e.kind == "furnace" and 3 or 27)
+      t.inventory = Inventory.new(e.kind == "furnace" and 3 or (e.kind == "brewing" and 4 or 27))
       t.inventory:deserialize(e.inv)
     end
     if e.pending then
@@ -92,6 +92,7 @@ local function decodeTiles(chunk, list)
       for _, s in ipairs(e.pending) do t.pendingSlots[s[1]] = { id = s[2], count = s[3], damage = s[4] } end
     end
     t.burn, t.burnMax, t.cook, t.xp = e.burn or 0, e.burnMax or 0, e.cook or 0, e.xp or 0
+    if e.kind == "brewing" then t.brew = e.brew or 0 end
     t.mob, t.delay = e.mob, e.delay
     chunk.tiles[e.idx] = t
   end
@@ -207,7 +208,7 @@ local function serializeEntity(e)
     return { t = e.type, x = e.x, y = e.y, z = e.z, yaw = e.yaw }
   elseif e.type == "item" and not e.dead then
     return { t = "item", x = e.x, y = e.y, z = e.z, id = e.stack.id, count = e.stack.count,
-      damage = e.stack.damage, age = e.age }
+      damage = e.stack.damage, ench = e.stack.ench, age = e.age }
   end
   return nil
 end
@@ -250,7 +251,7 @@ function M.restoreEntities(game, chunk)
       if s.t == "minecart" then vehicles.spawnMinecart(game, s.x, s.y, s.z)
       else vehicles.spawnBoat(game, s.x, s.y, s.z, s.yaw) end
     elseif s.t == "item" then
-      local e = entities.newItem(s.x, s.y, s.z, { id = s.id, count = s.count, damage = s.damage }, 0, 0, 0)
+      local e = entities.newItem(s.x, s.y, s.z, { id = s.id, count = s.count, damage = s.damage, ench = s.ench }, 0, 0, 0)
       e.age = s.age or 0
       e.pickupDelay = 0
       game.entities:add(e)

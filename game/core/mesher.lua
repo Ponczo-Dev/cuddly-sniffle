@@ -244,7 +244,9 @@ local function meshOneBox(buf, def, meta, p, x, y, z, x0, y0, z0, x1, y1, z1, ti
         if b2 > b then b = b2 end
       end
       for k = 1, 4 do cs[k], cb[k], ca[k] = s, b, 3 end
-      local t = tileOverride or blocks.faceTile(def, f, meta)
+      local t = tileOverride
+      if type(t) == "table" then t = t[f] end
+      t = t or blocks.faceTile(def, f, meta)
       local tu = (t % 16) * TILE
       local tv = floor(t / 16) * TILE
       -- UV z faktycznej pozycji narożnika (fragment tekstury jak w MC)
@@ -271,7 +273,7 @@ local function meshBox(buf, def, id, meta, p, x, y, z)
     local list = def.boxes(meta)
     for i = 1, #list do
       local bx = list[i]
-      meshOneBox(buf, def, meta, p, x, y, z, bx[1], bx[2], bx[3], bx[4], bx[5], bx[6], bx.tile)
+      meshOneBox(buf, def, meta, p, x, y, z, bx[1], bx[2], bx[3], bx[4], bx[5], bx[6], bx.tiles or bx.tile)
     end
     return
   end

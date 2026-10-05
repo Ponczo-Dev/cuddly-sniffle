@@ -161,7 +161,7 @@ local function damageArmor(game, amount)
 end
 
 local UNBLOCKABLE = { starve = true, void = true, poison = true, drown = true,
-  suffocate = true }
+  suffocate = true, magic = true }
 
 -- ---------------------------------------------------------------------------
 -- Obrażenia
@@ -174,6 +174,8 @@ function S.damage(game, amount, source, attacker)
   if game.dead then return false end
   if game.player.gameMode == "creative" and source ~= "void" then return false end
   if amount <= 0 then return false end
+  -- odporność na ogień z mikstury
+  if game.effects.fire_resistance and (source == "fire" or source == "lava") then return false end
 
   -- nietykalność po trafieniu: tylko silniejszy cios przechodzi (różnica)
   if game.invulnerable > 10 then
@@ -196,6 +198,11 @@ function S.damage(game, amount, source, attacker)
       damageArmor(game, amount)
       amount = amount * (25 - points) / 25
     end
+  end
+  -- zaklęcia ochronne pancerza (także Powolne opadanie przy upadku)
+  if source ~= "void" and source ~= "starve" then
+    local f = require("core.enchant").protectionFactor(game.armor, source, game.rng:next())
+    if f > 0 then amount = amount * (1 - f) end
   end
   -- zaokrąglanie ułamków jak w MC (reszta kumuluje się losowo)
   local whole = floor(amount)
@@ -231,6 +238,7 @@ local DEATH_MESSAGES = {
   drown = "utonal", starve = "umarl z glodu", cactus = "zostal zakluty na smierc",
   void = "wypadl ze swiata", mob = "zostal zabity", arrow = "zostal zastrzelony",
   explosion = "wylecial w powietrze", poison = "zostal otruty", suffocate = "udusil sie w scianie",
+  magic = "zostal zabity magia",
 }
 
 function S.die(game, source, attacker)
@@ -345,6 +353,14 @@ function S.startEating(game)
 end
 
 -- Blokowanie mieczem (Beta 1.8): prawy przycisk, połowa obrażeń, wolniejszy ruch
+-- Picie mikstury: jak jedzenie, 32 ticki trzymania prawego przycisku
+function S.startDrinking(game)
+  local s = game:heldStack()
+  if not s or s.id ~= 373 then return false end
+  game.using = { kind = "drink", ticks = 0, slot = game.selected, id = s.id }
+  return true
+end
+
 function S.startBlocking(game)
   local s = game:heldStack()
   game.using = { kind = "block", ticks = 0, slot = game.selected, id = s and s.id }
@@ -372,7 +388,7 @@ local function finishEating(game)
   game.food = math.min(20, game.food + f.hunger)
   game.saturation = math.min(game.food, game.saturation + f.hunger * f.saturation * 2)
   if f.poison and game.rng:chance(f.poison.chance) then
-    S.addEffect(game, "hunger", f.poison.ticks, 0)
+    S.addEffect(game, f.poison.effect or "hunger", f.poison.ticks, 0)
   end
   if s.id == 322 then S.addEffect(game, "regeneration", 600, 0) end
   game:emit("sound", "burp", game.player.x, game.player.y + 1.5, game.player.z)
@@ -393,11 +409,15 @@ function S.stopUsing(game)
     if f < 0.1 then return end
     if f > 1 then f = 1 end
     local creative = game.player.gameMode == "creative"
+    local infinity = require("core.enchant").level(game:heldStack(), "infinity") > 0
     if not creative then
-      if game.inventory:removeItem(262, 1) == 0 then return end
+      if not infinity and game.inventory:removeItem(262, 1) == 0 then return end
       game:damageHeld(1)
     end
+    -- strzał z Nieskończoności (i z trybu kreatywnego) nie da się podnieść
+    game.noArrowPickup = infinity or creative
     game.mobs.shootArrow(game, f)
+    game.noArrowPickup = nil
   end
 end
 
@@ -410,7 +430,13 @@ local function tickUsing(game)
     return
   end
   u.ticks = u.ticks + 1
-  if u.kind == "eat" then
+  if u.kind == "drink" then
+    if u.ticks % 4 == 0 then game:emit("sound", "drink", game.player.x, game.player.y + 1.5, game.player.z) end
+    if u.ticks >= 32 then
+      game.using = nil
+      require("core.potions").drink(game, u.slot)
+    end
+  elseif u.kind == "eat" then
     if u.ticks % 4 == 0 then
       game:emit("sound", "eat", game.player.x, game.player.y + 1.5, game.player.z)
       game:emit("particles", "eat", u.id)
@@ -448,7 +474,9 @@ local function tickEnvironment(game)
 
   -- tonięcie
   if p.headInWater and game.player.gameMode ~= "creative" then
-    game.air = game.air - 1
+    -- Oddychanie: powietrze ubywa wolniej
+    local resp = require("core.enchant").level(game.armor.slots[1], "respiration")
+    if resp == 0 or game.rng:next() < 1 / (resp + 1) then game.air = game.air - 1 end
     if game.air <= -20 then
       game.air = 0
       S.damage(game, 2, "drown")
@@ -514,6 +542,12 @@ function S.tick(game)
     game.food, game.saturation = 20, 5
   end
   tickEffects(game)
+  -- szybkość / spowolnienie z mikstur
+  local fx = game.effects
+  local mul = 1
+  if fx.speed then mul = mul * (1 + 0.2 * (fx.speed.amp + 1)) end
+  if fx.slowness then mul = mul * math.max(0.1, 1 - 0.15 * (fx.slowness.amp + 1)) end
+  game.player.speedMul = mul
 end
 
 return S

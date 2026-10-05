@@ -106,6 +106,28 @@ function M.draw(game, alpha, opts)
     g.setColor(1, 1, 1, 1)
   end
 
+  -- aktywne efekty mikstur (prawy górny róg)
+  local fx = game.effects
+  if fx and next(fx) then
+    local potions = require("core.potions")
+    local names = {}
+    for name in pairs(fx) do names[#names + 1] = name end
+    table.sort(names)
+    local y = 4 * s
+    for _, name in ipairs(names) do
+      local e = fx[name]
+      local secs = math.floor(e.ticks / 20)
+      local label = (potions.EFFECT_LABEL[name] or name) .. ((e.amp or 0) > 0 and " II" or "")
+        .. string.format("  %d:%02d", math.floor(secs / 60), secs % 60)
+      local tw = gui.textWidth(label)
+      g.setColor(0, 0, 0, 0.45)
+      g.rectangle("fill", w - tw - 10 * s, y - s, tw + 8 * s, 11 * s)
+      gui.text(label, w - tw - 6 * s, y, { 1, 1, 1 })
+      y = y + 12 * s
+    end
+    g.setColor(1, 1, 1, 1)
+  end
+
   -- pasek szybkiego wyboru (182 x 22)
   local hx = math.floor(w / 2 - 91 * s)
   local hy = h - 22 * s

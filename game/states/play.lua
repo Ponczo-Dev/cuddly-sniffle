@@ -264,7 +264,7 @@ function Play:openContainer(kind, x, y, z)
   else
     self:openScreen(ContainerScreen.new(game, kind, { x, y, z }))
     -- gość: zawartość skrzyni/pieca jest u gospodarza
-    if game.netClient and (kind == "chest" or kind == "furnace") then
+    if game.netClient and (kind == "chest" or kind == "furnace" or kind == "brewing") then
       local list = { { x, y, z } }
       if kind == "chest" then
         for _, d in ipairs({ { -1, 0 }, { 1, 0 }, { 0, -1 }, { 0, 1 } }) do
@@ -532,6 +532,10 @@ function Play:ambientParticles()
       particles.burst("flame", x + (x0 + x1) / 2, y + y1 + 0.05, z + (z0 + z1) / 2, 1)
     elseif id == 62 then
       particles.burst("flame", x + 0.5, y + 0.3, z + 0.5, 1)
+    elseif id == 116 then
+      particles.burst("enchant", x + 0.5, y + 1.2, z + 0.5, 2)
+    elseif id == 119 or id == 120 then
+      if math.random() < 0.3 then particles.burst("portal", x + 0.5, y + 0.9, z + 0.5, 1) end
     elseif id == 10 and world:getBlock(x, y + 1, z) == 0 and math.random() < 0.1 then
       particles.burst("fire_small", x + 0.5, y + 1, z + 0.5, 1)
     end
@@ -569,7 +573,7 @@ function Play:handleEvents()
         local lx, ly, lz = p:lookVector()
         particles.burst("smoke", ex + lx * 0.4, ey - 0.2 + ly * 0.4, ez + lz * 0.4, 2)
       else
-        particles.burst(ev[2], ev[3], ev[4], ev[5], 8)
+        particles.burst(ev[2], ev[3], ev[4], ev[5], ev[2] == "potion" and 30 or 8, ev[6])
       end
     elseif kind == "explosion" then
       particles.burst("explosion", ev[2], ev[3], ev[4], 40)
@@ -752,7 +756,9 @@ function Play:drawEntities(alpha)
           if e.type == "mob" or e.type == "player" then
             models.drawMob(e, alpha, light, time)
           elseif e.type == "item" then
+            if e.stack.ench then s:send("u_glint", 0.6); s:send("u_time", time) end
             models.drawItem(e, alpha, light, time, cam.yaw)
+            if e.stack.ench then s:send("u_glint", 0) end
           elseif e.type == "falling" or e.type == "tnt" then
             s:send("u_light", light)
             if e.type == "tnt" and math.floor(e.fuse / 5) % 2 == 0 then
@@ -787,12 +793,19 @@ function Play:drawEntities(alpha)
             local pulse = 0.8 + math.sin((e.age + alpha) * 0.4) * 0.2
             models.baseMatrix(tmpM, x, y + 0.15, z, (e.age + alpha) * 0.1, pulse)
             models.drawMesh(models.xp, tmpM)
-          elseif e.type == "fireball" then
+          elseif e.type == "fireball" or e.type == "smallfireball" then
             s:send("u_light", 1)
             g.setColor(1, 0.55, 0.15, 1)
-            models.baseMatrix(tmpM, x, y, z, (e.age + alpha) * 0.3, 3)
+            models.baseMatrix(tmpM, x, y, z, (e.age + alpha) * 0.3, e.type == "fireball" and 3 or 1.2)
             models.drawMesh(models.ball, tmpM)
             g.setColor(1, 1, 1, 1)
+          elseif e.type == "potion" or e.type == "eye" then
+            s:send("u_light", e.type == "eye" and 1 or light)
+            local mesh = models.spriteMesh(e.type == "eye" and 381 or 373, e.potion or 0)
+            if mesh then
+              models.baseMatrix(tmpM, x, y, z, cam.yaw, 0.35)
+              models.drawMesh(mesh, tmpM)
+            end
           elseif e.type == "snowball" or e.type == "egg" or e.type == "pearl" then
             s:send("u_light", light)
             local c = e.type == "egg" and { 0.95, 0.9, 0.75 } or (e.type == "pearl" and { 0.1, 0.4, 0.35 } or { 1, 1, 1 })
@@ -865,10 +878,16 @@ function Play:drawHand(alpha)
   local bobY = options.values.viewBobbing and -math.abs(math.cos(walk * math.pi)) * 0.04 * self.bob or 0
   local using = game.using
   local eatBob = 0
-  if using and using.kind == "eat" then eatBob = math.abs(math.sin(using.ticks * 0.8)) * 0.05 end
+  if using and (using.kind == "eat" or using.kind == "drink") then
+    eatBob = math.abs(math.sin(using.ticks * 0.8)) * 0.05
+  end
 
   local held = game:heldStack()
   g.setMeshCullMode("none")
+  if held and held.ench then
+    s:send("u_glint", 0.55)
+    s:send("u_time", love.timer.getTime())
+  end
   if held then
     if models.isCubeItem(held.id) then
       local mesh = models.blockMesh(held.id, (blocks.defs[held.id].metaMask or 0) > 0 and held.damage or 0)
@@ -911,6 +930,7 @@ function Play:drawHand(alpha)
     mat4.multiply(tmpM, tmpM, tmpM2)
     models.drawMesh(models.arm, tmpM)
   end
+  s:send("u_glint", 0)
   s:send("u_view", "row", self.camera.view)
 end
 

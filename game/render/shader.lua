@@ -64,6 +64,8 @@ vec4 position(mat4 transform_projection, vec4 vertex_position) {
 local ENTITY_PIXEL = [[
 uniform float u_light;      // jasność w miejscu bytu 0..1
 uniform vec4 u_tint;        // np. czerwony błysk po trafieniu
+uniform float u_glint;      // poświata zaklętego przedmiotu 0..1
+uniform float u_time;
 uniform vec3 u_fogColor;
 uniform float u_fogStart;
 uniform float u_fogEnd;
@@ -74,6 +76,11 @@ vec4 effect(vec4 color, Image tex, vec2 uv, vec2 screen) {
   if (t.a < 0.1) discard;
   vec3 rgb = t.rgb * u_light;
   rgb = mix(rgb, u_tint.rgb, u_tint.a);
+  if (u_glint > 0.0) {
+    float band = 0.5 + 0.5 * sin((screen.x + screen.y) * 0.035 - u_time * 3.0);
+    band = band * band * band;
+    rgb += u_glint * (0.15 + band) * vec3(0.45, 0.2, 0.8) * (0.4 + 0.6 * u_light);
+  }
   float fog = clamp((v_dist - u_fogStart) / (u_fogEnd - u_fogStart), 0.0, 1.0);
   rgb = mix(rgb, u_fogColor, fog);
   return vec4(rgb, t.a);
@@ -84,6 +91,7 @@ function M.load()
   M.chunk = love.graphics.newShader(CHUNK_PIXEL, COMMON_VERTEX)
   M.entity = love.graphics.newShader(ENTITY_PIXEL, ENTITY_VERTEX)
   M.entity:send("u_tint", { 0, 0, 0, 0 })
+  M.entity:send("u_glint", 0)
   M.chunk:send("u_ambient", 0)
   M.entity:send("u_light", 1)
   return M

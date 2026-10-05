@@ -54,7 +54,7 @@ function Inventory:add(stack, order)
     if count <= 0 then break end
     if not self.slots[i] then
       local n = math.min(max, count)
-      self.slots[i] = { id = stack.id, count = n, damage = stack.damage or 0 }
+      self.slots[i] = { id = stack.id, count = n, damage = stack.damage or 0, ench = stack.ench }
       count = count - n
     end
   end
@@ -104,7 +104,15 @@ function Inventory:damageItem(i, amount)
   if not s then return false end
   local d = items.get(s.id)
   if not d or not d.maxDamage then return false end
-  s.damage = (s.damage or 0) + (amount or 1)
+  amount = amount or 1
+  if s.ench then
+    -- Niezniszczalność: każdy punkt zużycia z szansą 1/(poziom+1)
+    local enchant = require("core.enchant")
+    local n = 0
+    for _ = 1, amount do if enchant.shouldDamage(s) then n = n + 1 end end
+    amount = n
+  end
+  s.damage = (s.damage or 0) + amount
   self.changed = true
   if s.damage >= d.maxDamage then
     self.slots[i] = nil
@@ -125,7 +133,7 @@ function Inventory:serialize()
   local out = {}
   for i = 1, self.size do
     local s = self.slots[i]
-    if s then out[#out + 1] = { i, s.id, s.count, s.damage or 0 } end
+    if s then out[#out + 1] = { i, s.id, s.count, s.damage or 0, s.ench } end
   end
   return out
 end
@@ -134,7 +142,8 @@ function Inventory:deserialize(data)
   self.slots = {}
   for _, e in ipairs(data or {}) do
     if items.get(e[2]) then
-      self.slots[e[1]] = { id = e[2], count = e[3], damage = e[4] or 0 }
+      self.slots[e[1]] = { id = e[2], count = e[3], damage = e[4] or 0,
+        ench = type(e[5]) == "table" and e[5] or nil }
     end
   end
   self.changed = true

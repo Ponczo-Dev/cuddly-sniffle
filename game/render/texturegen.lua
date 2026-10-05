@@ -1028,6 +1028,145 @@ G.trapdoor = function(rng)
   return t
 end
 
+-- ---------------------------------------------------------------------------
+-- Zaklinanie, alchemia, twierdza, End
+-- ---------------------------------------------------------------------------
+G.enchanting_top = function(rng)
+  -- czerwone sukno z diamentowymi narożnikami i księgą na środku
+  local t = noisy(rng, 150, 30, 35, 10)
+  for i = 0, N - 1 do
+    set(t, i, 0, 30, 15, 40); set(t, i, N - 1, 30, 15, 40); set(t, 0, i, 30, 15, 40); set(t, N - 1, i, 30, 15, 40)
+  end
+  for _, c in ipairs({ { 1, 1 }, { 13, 1 }, { 1, 13 }, { 13, 13 } }) do
+    for y = 0, 1 do for x = 0, 1 do set(t, c[1] + x, c[2] + y, 90, 230, 220) end end
+  end
+  for y = 5, 10 do for x = 4, 11 do set(t, x, y, 230, 225, 200) end end
+  for y = 5, 10 do set(t, 7, y, 120, 70, 40); set(t, 8, y, 120, 70, 40) end
+  for x = 5, 10 do if x ~= 7 and x ~= 8 then set(t, x, 7, 150, 150, 140) end end
+  return t
+end
+G.enchanting_side = function(rng)
+  local t = G.obsidian(rng)
+  for y = 0, 3 do for x = 0, N - 1 do set(t, x, y, 140 - y * 10, 25, 30) end end
+  for x = 0, N - 1, 4 do set(t, x + 1, 4, 140, 25, 30) end
+  return t
+end
+G.enchanting_bottom = function(rng) return G.obsidian(rng) end
+G.brewing_stand = function(rng)
+  local t = new(0, 0, 0, 0)
+  for y = 0, N - 1 do for x = 6, 9 do
+    local k = 0.85 + rng:next() * 0.2
+    set(t, x, y, 230 * k, 180 * k, 60 * k)
+  end end
+  return t
+end
+G.brewing_base = function(rng)
+  local t = noisy(rng, 105, 105, 105, 10)
+  border(t, 0.7)
+  return t
+end
+G.cauldron = function(rng)
+  local t = noisy(rng, 60, 60, 64, 8)
+  border(t, 0.7)
+  for i = 2, 13, 4 do for x = 1, 14 do shade(t, x, i, 0.8) end end
+  return t
+end
+G.cauldron_inner = function(rng)
+  local t = noisy(rng, 45, 45, 48, 6)
+  return t
+end
+G.end_stone = function(rng)
+  local t = noisy(rng, 222, 222, 160, 10)
+  for _ = 1, 22 do
+    local x, y = rng:int(0, 15), rng:int(0, 15)
+    shade(t, x, y, 0.85)
+  end
+  for _ = 1, 8 do
+    local x, y = rng:int(0, 15), rng:int(0, 15)
+    set(t, x, y, 245, 245, 195)
+  end
+  return t
+end
+G.end_portal_frame = function(rng)
+  local t = noisy(rng, 70, 105, 85, 10)
+  border(t, 0.6)
+  for y = 4, 11 do for x = 4, 11 do set(t, x, y, 25, 50, 45) end end
+  for y = 5, 10 do for x = 5, 10 do set(t, x, y, 40, 70, 60) end end
+  return t
+end
+G.end_portal_frame_side = function(rng)
+  local t = G.end_stone(rng)
+  for y = 0, 3 do for x = 0, N - 1 do
+    local k = 0.85 + rng:next() * 0.2
+    set(t, x, y, 70 * k, 105 * k, 85 * k)
+  end end
+  return t
+end
+G.ender_eye = function(rng)
+  local t = noisy(rng, 30, 110, 90, 12)
+  for y = 5, 10 do for x = 5, 10 do set(t, x, y, 70, 170, 120) end end
+  for y = 6, 9 do for x = 7, 8 do set(t, x, y, 20, 20, 20) end end
+  return t
+end
+G.end_portal = function(rng)
+  -- czarna pustka z kolorowymi gwiazdkami
+  local t = new(5, 8, 12)
+  local cols = { { 50, 160, 140 }, { 90, 60, 160 }, { 40, 110, 180 }, { 180, 200, 220 } }
+  for _ = 1, 26 do
+    local c = cols[rng:int(1, #cols)]
+    set(t, rng:int(0, 15), rng:int(0, 15), c[1], c[2], c[3])
+  end
+  return t
+end
+G.dragon_egg = function(rng)
+  local t = noisy(rng, 20, 10, 28, 6)
+  for _ = 1, 20 do set(t, rng:int(0, 15), rng:int(0, 15), 70, 20, 90) end
+  return t
+end
+local function wart(stage)
+  return function(rng)
+    local t = new(0, 0, 0, 0)
+    local h = ({ 5, 8, 12 })[stage + 1]
+    for _, sx in ipairs({ 3, 7, 11 }) do
+      for y = N - h, N - 1 do
+        local k = 0.8 + rng:next() * 0.3
+        set(t, sx, y, 140 * k, 20 * k, 25 * k)
+        if y < N - h + 3 then set(t, sx + 1, y, 170 * k, 40 * k, 40 * k); set(t, sx - 1, y, 120 * k, 15 * k, 20 * k) end
+      end
+    end
+    return t
+  end
+end
+G.nether_wart_0, G.nether_wart_1, G.nether_wart_2 = wart(0), wart(1), wart(2)
+G.stone_bricks_mossy = function(rng)
+  local t = G.stone_bricks(rng)
+  for _ = 1, 40 do
+    local x, y = rng:int(0, 15), rng:int(0, 15)
+    local k = 0.8 + rng:next() * 0.4
+    set(t, x, y, 70 * k, 105 * k, 50 * k)
+  end
+  return t
+end
+G.stone_bricks_cracked = function(rng)
+  local t = G.stone_bricks(rng)
+  local x, y = rng:int(3, 6), 0
+  while y < N do
+    shade(t, x, y, 0.55)
+    x = x + rng:int(-1, 1)
+    y = y + 1
+  end
+  for i = 0, 6 do shade(t, 9 + i % 3, 8 + i, 0.6) end
+  return t
+end
+G.iron_bars = function(rng)
+  local t = new(0, 0, 0, 0)
+  for x = 1, N - 1, 4 do
+    for y = 0, N - 1 do set(t, x, y, 160, 160, 165); set(t, x + 1, y, 120, 120, 125) end
+  end
+  for x = 0, N - 1 do set(t, x, 0, 150, 150, 155); set(t, x, N - 1, 150, 150, 155) end
+  return t
+end
+
 -- Brakująca tekstura: magenta-czarna szachownica (od razu widać błąd)
 local function missing()
   local t = new()

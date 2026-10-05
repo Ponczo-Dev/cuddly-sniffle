@@ -237,14 +237,21 @@ local function makeMobsProxy(client)
       return
     end
     local held = game:heldStack()
-    local dmg = items.attackDamage(held)
+    local enchant = require("core.enchant")
+    local dmg = items.attackDamage(held) + mobs.effectAttackBonus(game)
     local crit = p.vy < 0 and not p.onGround and not p.inWater and p.fallDistance > 0
     if crit then
       dmg = dmg + game.rng:int(0, floor(dmg / 2) + 1)
       game:emit("particles", "crit", e.x, e.y + e.height * 0.7, e.z)
     end
-    dmg = client.modifyDamage and client.modifyDamage(game, e, dmg) or dmg
-    client:send({ t = "attack", id = e.id, dmg = dmg, kb = p.sprinting and 2 or 1 })
+    local bonus = enchant.attackBonus(held, e)
+    if bonus > 0 then
+      dmg = dmg + bonus
+      game:emit("particles", "magic_crit", e.x, e.y + e.height * 0.7, e.z)
+    end
+    client:send({ t = "attack", id = e.id, dmg = math.max(0, dmg),
+      kb = (p.sprinting and 2 or 1) + enchant.level(held, "knockback"),
+      fire = enchant.level(held, "fire_aspect"), loot = enchant.level(held, "looting") })
     e.localHurt = 10
     local hd = held and items.get(held.id)
     if hd and hd.maxDamage then game:damageHeld(hd.toolType == "sword" and 1 or 2) end
@@ -366,11 +373,14 @@ function Client:receiveTile(msg)
   local inv = tile.inventory
   local fresh = {}
   for _, e in ipairs(msg.inv or {}) do
-    if type(e) == "table" and items.get(e[2]) then fresh[e[1]] = { id = e[2], count = e[3], damage = e[4] or 0 } end
+    if type(e) == "table" and items.get(e[2]) then
+      fresh[e[1]] = { id = e[2], count = e[3], damage = e[4] or 0, ench = type(e[5]) == "table" and e[5] or nil }
+    end
   end
   for i = 1, inv.size do inv.slots[i] = fresh[i] end
   inv.changed = true
   tile.burn, tile.burnMax, tile.cook = msg.burn or tile.burn, msg.burnMax or tile.burnMax, msg.cook or tile.cook
+  tile.brew = msg.brew or tile.brew
   -- nie odsyłamy z powrotem tego, co właśnie przyszło
   if self.watch then
     for _, w in ipairs(self.watch) do
@@ -409,7 +419,8 @@ function Client:handle(msg, payload)
     p.vx, p.vy, p.vz = p.vx + dq(msg.vx), p.vy + dq(msg.vy), p.vz + dq(msg.vz)
   elseif t == "give" then
     if items.get(msg.id) then
-      game:giveItem({ id = msg.id, count = msg.count or 1, damage = msg.damage or 0 })
+      game:giveItem({ id = msg.id, count = msg.count or 1, damage = msg.damage or 0,
+        ench = type(msg.ench) == "table" and msg.ench or nil })
       local p = game.player
       game:emit("sound", "pop", p.x, p.y + 1, p.z)
       game.stats.collected = (game.stats.collected or 0) + (msg.count or 1)
@@ -479,7 +490,7 @@ function Client:tileSig(w)
   local parts = {}
   for i = 1, tile.inventory.size do
     local s = tile.inventory.slots[i]
-    parts[i] = s and (s.id .. ":" .. s.count .. ":" .. (s.damage or 0)) or "-"
+    parts[i] = s and (s.id .. ":" .. s.count .. ":" .. (s.damage or 0) .. (s.ench and "e" or "")) or "-"
   end
   return table.concat(parts, ",")
 end

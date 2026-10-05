@@ -61,6 +61,7 @@ end
 function I.canMerge(a, b)
   if not a or not b then return false end
   if a.id ~= b.id then return false end
+  if a.ench or b.ench then return false end -- zaklęte przedmioty się nie łączą
   local d = I.get(a.id)
   if d and d.maxDamage then return false end -- narzędzia się nie łączą
   return (a.damage or 0) == (b.damage or 0)
@@ -154,6 +155,33 @@ I.define { id = 351, name = "dye", label = "Barwnik", icon = "dye",
   use = "dye" }
 
 -- ---------------------------------------------------------------------------
+-- Alchemia, zaklinanie, mapy, End
+-- ---------------------------------------------------------------------------
+I.define { id = 373, name = "potion", label = "Mikstura", icon = "potion", stack = 1, use = "potion",
+  labelFn = function(s) return require("core.potions").label(s.damage) end }
+I.define { id = 374, name = "glass_bottle", label = "Szklana butelka", icon = "glass_bottle",
+  use = "bottle" }
+I.define { id = 372, name = "nether_wart_item", label = "Brodawka netherowa", icon = "nether_wart",
+  plant = 115 }
+I.define { id = 369, name = "blaze_rod", label = "Plomienna rozdzka", icon = "blaze_rod" }
+I.define { id = 377, name = "blaze_powder", label = "Plomienny proszek", icon = "blaze_powder" }
+I.define { id = 378, name = "magma_cream", label = "Magmowy krem", icon = "magma_cream" }
+I.define { id = 371, name = "gold_nugget", label = "Samorodek zlota", icon = "gold_nugget" }
+I.define { id = 382, name = "glistering_melon", label = "Blyszczacy arbuz", icon = "glistering_melon" }
+I.define { id = 376, name = "fermented_spider_eye", label = "Fermentowane oko pajaka",
+  icon = "fermented_spider_eye" }
+I.define { id = 381, name = "eye_of_ender", label = "Oko Endu", icon = "eye_of_ender", use = "eye" }
+I.define { id = 379, name = "brewing_stand_item", label = "Statyw alchemiczny", icon = "brewing_stand",
+  placeBlock = 117 }
+I.define { id = 380, name = "cauldron_item", label = "Kociol", icon = "cauldron", placeBlock = 118 }
+I.define { id = 345, name = "compass", label = "Kompas", icon = "compass" }
+I.define { id = 368, name = "ender_pearl", label = "Perla Endu", icon = "ender_pearl",
+  stack = 16, use = "throw" }
+I.define { id = 395, name = "empty_map", label = "Pusta mapa", icon = "empty_map", use = "map" }
+I.define { id = 358, name = "map", label = "Mapa", icon = "map", stack = 1,
+  labelFn = function(s) return "Mapa #" .. (s.damage or 0) end }
+
+-- ---------------------------------------------------------------------------
 -- Jedzenie (Beta 1.8): hunger = punkty głodu, saturation = mnożnik nasycenia
 -- ---------------------------------------------------------------------------
 local function food(id, name, label, hunger, sat, extra)
@@ -177,6 +205,7 @@ food(364, "steak", "Stek", 8, 0.8)
 food(365, "raw_chicken", "Surowy kurczak", 2, 0.3, { poison = { chance = 0.3, ticks = 600 } })
 food(366, "cooked_chicken", "Pieczony kurczak", 6, 0.6)
 food(367, "rotten_flesh", "Zgnile mieso", 4, 0.1, { poison = { chance = 0.8, ticks = 600 } })
+food(375, "spider_eye", "Oko pajaka", 2, 0.8, { poison = { chance = 1, ticks = 100, effect = "poison" } })
 
 -- ---------------------------------------------------------------------------
 -- Wiadra
@@ -286,6 +315,9 @@ function I.breakStrength(stack, blockDef, onGround, inWater)
   if h < 0 then return 0 end
   if h == 0 then return 1 end
   local speed = I.toolSpeed(stack, blockDef)
+  if speed > 1 and stack and stack.ench then
+    speed = speed + require("core.enchant").efficiencyBonus(stack)
+  end
   local s
   if not I.canHarvest(stack, blockDef) and blockDef.tier ~= nil then
     s = 1 / h / 100

@@ -51,7 +51,11 @@ M.DEFS = {
     drops = function(rng) return { { 352, rng:int(0, 2) }, { 262, rng:int(0, 2) } } end },
   spider = { label = "Pajak", w = 1.4, h = 0.9, health = 16, speed = 0.14, hostile = true,
     damage = { 2, 2, 3 }, climbs = true, xp = { 5, 5 },
-    drops = function(rng) return { { 287, rng:int(0, 2) } } end },
+    drops = function(rng, _, e)
+      local list = { { 287, rng:int(0, 2) } }
+      if (e.lastHitByPlayer or 0) > 0 and rng:chance(1 / 3) then list[2] = { 375, 1 } end
+      return list
+    end },
   creeper = { label = "Creeper", w = 0.6, h = 1.7, health = 20, speed = 0.1, hostile = true,
     explodes = true, xp = { 5, 5 },
     drops = function(rng) return { { 289, rng:int(0, 2) } } end },
@@ -59,8 +63,11 @@ M.DEFS = {
     neutral = true, damage = { 5, 7, 9 }, xp = { 5, 5 }, nether = true,
     drops = function(rng) return { { 367, rng:int(0, 1) }, { 320, rng:int(0, 1) } } end },
   ghast = { label = "Ghast", w = 4, h = 4, health = 10, speed = 0.05, hostile = true, flying = true,
-    xp = { 5, 5 }, nether = true,
+    xp = { 5, 5 }, nether = true, fireImmune = true,
     drops = function(rng) return { { 289, rng:int(0, 2) }, { 370, rng:int(0, 1) } } end },
+  blaze = { label = "Plomyk", w = 0.6, h = 1.8, health = 20, speed = 0.06, hostile = true, flying = true,
+    xp = { 10, 10 }, nether = true, fireImmune = true,
+    drops = function(rng) return { { 369, rng:int(0, 1) } } end },
   enderman = { label = "Enderman", w = 0.6, h = 2.9, health = 40, speed = 0.15, hostile = true,
     neutral = true, damage = { 4, 7, 10 }, teleports = true, xp = { 5, 5 },
     drops = function(rng) return { { 368, rng:int(0, 1) } } end },
@@ -286,9 +293,13 @@ local function dropLoot(game, e)
   local d = e.def
   if isBaby(e) then return end
   local burning = e.fireTicks > 0
+  -- Grabież: więcej łupów
+  local looting = (e.lastHitByPlayer or 0) > 0 and (e.looting or 0) or 0
   for _, s in ipairs(d.drops(game.rng, burning, e) or {}) do
-    if s[2] > 0 then
-      game:dropStack(e.x, e.y + 0.5, e.z, { id = s[1], count = s[2], damage = s[3] or 0 })
+    local n = s[2]
+    if looting > 0 then n = n + game.rng:int(0, looting) end
+    if n > 0 then
+      game:dropStack(e.x, e.y + 0.5, e.z, { id = s[1], count = n, damage = s[3] or 0 })
     end
   end
   if (e.lastHitByPlayer or 0) > 0 then
@@ -300,6 +311,15 @@ end
 -- ---------------------------------------------------------------------------
 -- Atak gracza
 -- ---------------------------------------------------------------------------
+-- Siła / osłabienie z mikstur
+function M.effectAttackBonus(game)
+  local fx = game.effects or {}
+  local b = 0
+  if fx.strength then b = b + 3 * (fx.strength.amp + 1) end
+  if fx.weakness then b = b - 2 * (fx.weakness.amp + 1) end
+  return b
+end
+
 function M.playerAttack(game, e)
   local p = game.player
   if e.isVehicle then
@@ -307,16 +327,27 @@ function M.playerAttack(game, e)
     return
   end
   local held = game:heldStack()
-  local dmg = items.attackDamage(held)
+  local enchant = require("core.enchant")
+  local dmg = items.attackDamage(held) + M.effectAttackBonus(game)
   -- cios krytyczny: w trakcie opadania (Beta 1.8)
   local crit = p.vy < 0 and not p.onGround and not p.inWater and p.fallDistance > 0
   if crit then
     dmg = dmg + game.rng:int(0, floor(dmg / 2) + 1)
     game:emit("particles", "crit", e.x, e.y + e.height * 0.7, e.z)
   end
-  local attacker = { x = p.x, z = p.z, knockback = p.sprinting and 2 or 1 }
+  local bonus = enchant.attackBonus(held, e)
+  if bonus > 0 then
+    dmg = dmg + bonus
+    game:emit("particles", "magic_crit", e.x, e.y + e.height * 0.7, e.z)
+  end
+  dmg = math.max(0, dmg)
+  local attacker = { x = p.x, z = p.z,
+    knockback = (p.sprinting and 2 or 1) + enchant.level(held, "knockback") }
   if M.damageMob(game, e, dmg, "player", attacker) then
     e.lastHitByPlayer = 100
+    e.looting = enchant.level(held, "looting")
+    local fire = enchant.level(held, "fire_aspect")
+    if fire > 0 then e.fireTicks = math.max(e.fireTicks or 0, 80 * fire) end
     if e.def.neutral then e.angry = game.player; e.target = game.player end
     if e.kind == "wolf" and not e.tamed then e.angry = game.player end
     local hd = held and items.get(held.id)
@@ -426,6 +457,14 @@ function M.shootArrow(game, power)
     lx * speed, ly * speed, lz * speed, p, 2)
   a.crit = power >= 1
   a.fromPlayer = true
+  -- zaklęcia łuku
+  local enchant = require("core.enchant")
+  local bow = game:heldStack()
+  local pw = enchant.level(bow, "power")
+  if pw > 0 then a.damage = a.damage + pw * 0.5 + 0.5 end
+  a.punch = enchant.level(bow, "punch")
+  if enchant.level(bow, "flame") > 0 then a.flame = true end
+  if game.noArrowPickup then a.fromPlayer = false end
   game.entities:add(a)
   game:emit("sound", "bow", p.x, p.y + 1.5, p.z)
 end
@@ -509,8 +548,10 @@ entities.TICK.arrow = function(game, a)
     if what == game.player then
       game.survival.damage(game, dmg, "arrow", a.shooter)
     else
-      M.damageMob(game, what, dmg, "arrow", { x = a.x - a.vx, z = a.z - a.vz })
-      if a.fromPlayer then what.lastHitByPlayer = 100 end
+      M.damageMob(game, what, dmg, "arrow", { x = a.x - a.vx, z = a.z - a.vz,
+        knockback = 1 + (a.punch or 0) * 1.5 })
+      if a.fromPlayer or a.shooter == game.player then what.lastHitByPlayer = 100 end
+      if a.flame then what.fireTicks = math.max(what.fireTicks or 0, 100) end
     end
     game:emit("sound", "arrow_hit", a.x, a.y, a.z)
     a.dead = true
@@ -993,15 +1034,20 @@ entities.TICK.mob = function(game, e)
 
   -- ogień i lawa
   if e.inLava then
-    M.damageMob(game, e, 4, "lava")
+    if not e.def.fireImmune then M.damageMob(game, e, 4, "lava") end
     e.fireTicks = 300
   end
   if e.fireTicks > 0 then
     e.fireTicks = e.fireTicks - 1
     if e.inWater then e.fireTicks = 0 end
-    if e.fireTicks % 20 == 0 then M.damageMob(game, e, 1, "fire") end
+    if e.fireTicks % 20 == 0 and not e.def.fireImmune then M.damageMob(game, e, 1, "fire") end
   end
+  if e.inWater and e.kind == "blaze" then M.damageMob(game, e, 1, "water") end
   if e.inWater and e.kind == "enderman" then M.damageMob(game, e, 1, "water") end
+  if (e.poison or 0) > 0 then
+    e.poison = e.poison - 1
+    if e.poison % 25 == 0 and e.health > 1 then M.damageMob(game, e, 1, "poison") end
+  end
   physics.touchingBlocks(game.world, e, function(id)
     if id == 81 then M.damageMob(game, e, 1, "cactus") end
   end)
@@ -1009,6 +1055,10 @@ entities.TICK.mob = function(game, e)
   local d = e.def
   if e.kind == "wolf" then
     wolfAI(game, e)
+  elseif e.kind == "blaze" then
+    M.blazeAI(game, e)
+  elseif e.kind == "dragon" then
+    require("core.dragon").ai(game, e)
   elseif e.kind == "ghast" then
     M.ghastAI(game, e)
   elseif d.hostile then
@@ -1077,6 +1127,68 @@ function M.ghastAI(game, e)
   end
 end
 
+-- ---------------------------------------------------------------------------
+-- Płomyk: unosi się nad ziemią i strzela seriami małych kul ognia
+-- ---------------------------------------------------------------------------
+function M.blazeAI(game, e)
+  local p = game.player
+  local world = game.world
+  -- unoszenie: ok. 2 bloki nad podłożem, powoli opada
+  local ground = floor(e.y)
+  while ground > 0 and world:getBlock(floor(e.x), ground - 1, floor(e.z)) == 0 and e.y - ground < 6 do
+    ground = ground - 1
+  end
+  local want = ground + 2 + math.sin((e.age + e.id) * 0.05) * 0.5
+  local d = sqrt((p.x - e.x) ^ 2 + (p.z - e.z) ^ 2)
+  if d < 32 and not game.dead and p.gameMode ~= "creative" then want = math.max(want, p.y + 1) end
+  e.vy = e.vy + (want > e.y and 0.02 or -0.015)
+  if e.vy > 0.15 then e.vy = 0.15 elseif e.vy < -0.15 then e.vy = -0.15 end
+  if game.rng:chance(0.3) then game:emit("particles", "smoke", e.x, e.y + 1.2, e.z) end
+  if d < 32 and not game.dead and p.gameMode ~= "creative" then
+    faceTowards(e, p.x, p.z, 0.4)
+    if d > 6 then moveTowards(game, e, p.x - e.x, p.z - e.z, e.def.speed, false) end
+    if e.age % 10 == 0 then
+      local ex, ey, ez = p:eyePosition()
+      e.seesTarget = canSee(game, e, ex, ey, ez)
+    end
+    e.charge = (e.charge or 0) + 1
+    -- seria 3 kul co ~5 sekund
+    if e.seesTarget and d < 24 and e.charge >= 100 and e.charge % 6 == 0 then
+      local sx, sy, sz = e.x, e.y + 1.4, e.z
+      local fx, fy, fz = p.x - sx + (game.rng:next() - 0.5) * 1.5, p.y + 1 - sy, p.z - sz + (game.rng:next() - 0.5) * 1.5
+      local fl = sqrt(fx * fx + fy * fy + fz * fz)
+      local f = entities.newThrown("smallfireball", sx + fx / fl, sy + fy / fl, sz + fz / fl,
+        fx / fl * 0.5, fy / fl * 0.5, fz / fl * 0.5, e)
+      game.entities:add(f)
+      game:emit("sound", "ignite", sx, sy, sz)
+      if e.charge >= 112 then e.charge = 0 end
+    end
+  else
+    wander(game, e, e.def.speed * 0.5)
+  end
+end
+
+entities.TICK.smallfireball = function(game, f)
+  local kind, what = stepProjectile(game, f, 0, 1.0)
+  if game.rng:chance(0.4) then game:emit("particles", "flame", f.x, f.y, f.z) end
+  if kind then
+    f.dead = true
+    if kind == "entity" and what == game.player then
+      game.survival.damage(game, 5, "fire", f.shooter)
+      if not game.effects.fire_resistance then game.fireTicks = math.max(game.fireTicks, 100) end
+    elseif kind == "entity" and not what.def.fireImmune then
+      M.damageMob(game, what, 5, "fire")
+      what.fireTicks = 100
+    elseif kind == "block" then
+      local x, y, z = floor(f.x), floor(f.y), floor(f.z)
+      if game.world:getBlock(x, y, z) == 0 and blocks.OPAQUE[game.world:getBlock(x, y - 1, z)] == 1 then
+        game.world:setBlock(x, y, z, 51, 0)
+      end
+    end
+  end
+  if f.age > 200 then f.dead = true end
+end
+
 entities.TICK.fireball = function(game, f)
   local kind, what = stepProjectile(game, f, 0, 1.0)
   if game.rng:chance(0.5) then game:emit("particles", "flame", f.x, f.y, f.z) end
@@ -1107,7 +1219,7 @@ end
 -- ---------------------------------------------------------------------------
 local HOSTILE_KINDS = { "zombie", "zombie", "skeleton", "skeleton", "spider", "creeper",
   "creeper", "enderman" }
-local NETHER_KINDS = { "pigman", "pigman", "pigman", "pigman", "ghast" }
+local NETHER_KINDS = { "pigman", "pigman", "pigman", "pigman", "ghast", "blaze" }
 local PASSIVE_KINDS = { "pig", "cow", "sheep", "sheep", "chicken", "wolf" }
 
 local function canSpawnAt(game, x, y, z, w, h)

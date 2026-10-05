@@ -108,7 +108,9 @@ function M.entitySpawn(e)
     local tv = type(v)
     if (tv == "number" or tv == "string" or tv == "boolean") and k ~= "id" then out[k] = v end
   end
-  if e.stack then out.stack = { id = e.stack.id, count = e.stack.count, damage = e.stack.damage or 0 } end
+  if e.stack then
+    out.stack = { id = e.stack.id, count = e.stack.count, damage = e.stack.damage or 0, ench = e.stack.ench }
+  end
   return out
 end
 

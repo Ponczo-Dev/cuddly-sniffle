@@ -176,6 +176,26 @@ shaped(id("golden_apple"), 1, { "###", "#A#", "###" }, { ["#"] = id("gold_block"
 smelt(id("iron_ore"), id("iron_ingot"), 1, 0.7)
 smelt(id("gold_ore"), id("gold_ingot"), 1, 1.0)
 smelt(id("diamond_ore"), id("diamond"), 1, 1.0)
+-- ---------------------------------------------------------------------------
+-- Zaklinanie, alchemia, mapy, End
+-- ---------------------------------------------------------------------------
+shaped(id("enchanting_table"), 1, { " B ", "DOD", "OOO" },
+  { B = id("book"), D = id("diamond"), O = id("obsidian") })
+shaped(id("brewing_stand_item"), 1, { " R ", "CCC" }, { R = id("blaze_rod"), C = id("cobblestone") })
+shaped(id("cauldron_item"), 1, { "I I", "I I", "III" }, { I = id("iron_ingot") })
+shaped(id("glass_bottle"), 3, { "G G", " G " }, { G = id("glass") })
+shapeless(id("blaze_powder"), 2, { id("blaze_rod") })
+shapeless(id("magma_cream"), 1, { id("slimeball"), id("blaze_powder") })
+shapeless(id("fermented_spider_eye"), 1, { id("spider_eye"), id("brown_mushroom"), id("sugar") })
+shaped(id("glistering_melon"), 1, { "NNN", "NMN", "NNN" }, { N = id("gold_nugget"), M = id("melon_slice") })
+shapeless(id("gold_nugget"), 9, { id("gold_ingot") })
+shaped(id("gold_ingot"), 1, { "NNN", "NNN", "NNN" }, { N = id("gold_nugget") })
+shapeless(id("eye_of_ender"), 1, { id("ender_pearl"), id("blaze_powder") })
+shaped(id("compass"), 1, { " I ", "IRI", " I " }, { I = id("iron_ingot"), R = id("redstone") })
+shaped(id("empty_map"), 1, { "PPP", "PCP", "PPP" }, { P = id("paper"), C = id("compass") })
+shaped(id("iron_bars"), 16, { "III", "III" }, { I = id("iron_ingot") })
+shaped(id("stone_bricks"), 4, { "SS", "SS" }, { S = id("stone") })
+
 smelt(id("sand"), id("glass"), 1, 0.1)
 smelt(id("cobblestone"), id("stone"), 1, 0.1)
 smelt(id("log"), id("coal"), 1, 0.15, 1)

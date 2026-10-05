@@ -33,6 +33,9 @@ local NAMES = {
   "redstone_lamp", "redstone_lamp_on", "powered_rail", "powered_rail_on", "detector_rail",
   "dispenser_front", "note_block", "jukebox_top", "jukebox_side", "sponge", "end_stone",
   "end_portal_frame", "enchanting_top", "enchanting_side", "brewing_stand", "cauldron",
+  "nether_wart_0", "nether_wart_1", "nether_wart_2", "end_portal", "end_portal_frame_side",
+  "ender_eye", "dragon_egg", "brewing_base", "cauldron_inner", "stone_bricks_mossy",
+  "stone_bricks_cracked", "iron_bars", "enchanting_bottom",
 }
 
 M.names = NAMES

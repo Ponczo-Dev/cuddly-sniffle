@@ -226,6 +226,49 @@ local function buildModels()
   end
   MODELS.ghast = { part(ghastBody, { 0, 0, 0 }, "body"), part(tentacles, { 0, 16, 0 }, "tentacles") }
 
+  -- płomyk (blaze): żółta głowa i krążące pręty
+  local yel, rodc = { 0.95, 0.8, 0.25 }, { 1.0, 0.75, 0.2 }
+  local blazeHead = { B(-4, 18, -4, 4, 26, 4, yel), B(-3, 22, -4.1, -1, 23, -4, black),
+    B(1, 22, -4.1, 3, 23, -4, black), B(-3, 19, -4.1, 3, 20, -4, { 0.6, 0.4, 0.1 }) }
+  local function ring(r, y0, n, phase)
+    local list = {}
+    for i = 0, n - 1 do
+      local a = i / n * math.pi * 2 + phase
+      local cx, cz = math.cos(a) * r, math.sin(a) * r
+      list[#list + 1] = B(cx - 1, y0, cz - 1, cx + 1, y0 + 8, cz + 1, rodc)
+    end
+    return list
+  end
+  MODELS.blaze = { part(blazeHead, { 0, 22, 0 }, "head"), part(ring(9, 10, 4, 0), { 0, 0, 0 }, "spin", 0),
+    part(ring(7, 4, 4, 0.8), { 0, 0, 0 }, "spinBack", 1), part(ring(5, -1, 4, 0.3), { 0, 0, 0 }, "spin", 2) }
+
+  -- smok Endu (rysowany w skali 2)
+  local dk, dm, eye = { 0.12, 0.1, 0.14 }, { 0.22, 0.2, 0.25 }, { 0.85, 0.35, 1 }
+  local dragonBody = {
+    B(-12, 24, -24, 12, 44, 24, dk),
+    B(-2, 44, -20, 2, 48, -12, dm), B(-2, 44, -4, 2, 48, 4, dm), B(-2, 44, 12, 2, 48, 20, dm),
+    B(-5, 30, -44, 5, 40, -24, dk),
+    B(-4, 28, 24, 4, 36, 56, dk), B(-3, 29, 56, 3, 34, 84, dk), B(-2, 30, 84, 2, 33, 104, dk),
+    B(-11, 4, -18, -5, 24, -10, dk), B(5, 4, -18, 11, 24, -10, dk),
+    B(-11, 4, 12, -5, 24, 20, dk), B(5, 4, 12, 11, 24, 20, dk),
+  }
+  local dragonHead = {
+    B(-8, 26, -64, 8, 42, -44, dk), B(-6, 26, -78, 6, 35, -64, dk),
+    B(-7, 36, -64.3, -3, 39, -64, eye), B(3, 36, -64.3, 7, 39, -64, eye),
+    B(-6, 42, -56, -3, 46, -50, dm), B(3, 42, -56, 6, 46, -50, dm),
+    B(-5, 35, -76, -3, 37, -74, dm), B(3, 35, -76, 5, 37, -74, dm),
+  }
+  local wingL = { B(12, 40, -14, 64, 42, 10, dm), B(12, 42, -16, 64, 45, -12, dk) }
+  local wingR = { B(-64, 40, -14, -12, 42, 10, dm), B(-64, 42, -16, -12, 45, -12, dk) }
+  MODELS.dragon = { part(dragonBody, { 0, 0, 0 }, "body"), part(dragonHead, { 0, 35, -44 }, "head"),
+    part(wingL, { 12, 41, 0 }, "wingL"), part(wingR, { -12, 41, 0 }, "wingR") }
+
+  -- kryształ Endu: obracające się sześciany
+  local cr, cr2 = { 0.95, 0.55, 0.95 }, { 0.55, 0.2, 0.7 }
+  MODELS.crystal = { part({ B(-6, 2, -6, 6, 14, 6, cr) }, { 0, 8, 0 }, "spin", 0),
+    part({ B(-4, 4, -4, 4, 12, 4, cr2) }, { 0, 8, 0 }, "spinBack", 1),
+    part({ B(-6, -2, -6, 6, 0, 6, { 0.1, 0.1, 0.1 }) }, { 0, 0, 0 }, "body") }
+
   -- gracz (widok z trzeciej osoby)
   local skin = { 0.85, 0.62, 0.48 }
   MODELS.player = biped { legs = { 0.25, 0.2, 0.6 }, body = { 0.0, 0.65, 0.65 }, arms = skin,
@@ -395,6 +438,10 @@ local function partAngle(p, e, t)
   if p.anim == "skeletonArm" then return -math.pi / 2 * (e.target and 1 or 0) + swing * 0.5, 0 end
   if p.anim == "head" then return (e.headPitch or 0), 0 end
   if p.anim == "tentacles" then return math.sin(t * 2 + (e.id or 0)) * 0.1, 0 end
+  if p.anim == "spin" then return 0, t * 1.6 + p.phase end
+  if p.anim == "spinBack" then return 0, -t * 1.3 + p.phase end
+  if p.anim == "wingL" then return 0, 0, math.sin(t * 3 + (e.id or 0)) * 0.6 end
+  if p.anim == "wingR" then return 0, 0, -math.sin(t * 3 + (e.id or 0)) * 0.6 end
   if p.anim == "spiderLeftLeg" or p.anim == "spiderRightLeg" then
     local side = p.anim == "spiderLeftLeg" and 1 or -1
     local spread = (p.phase - 1.5) * 0.35
@@ -413,6 +460,7 @@ function M.drawMob(e, alpha, light, time)
   local z = e.prevZ + (e.z - e.prevZ) * alpha
   local yaw = e.prevYaw + (((e.yaw - e.prevYaw + math.pi) % (2 * math.pi)) - math.pi) * alpha
   local scale = (e.growth and e.growth < 0) and 0.5 or 1
+  if e.modelScale then scale = scale * e.modelScale end
   local roll = 0
   if e.deathTime and e.deathTime > 0 then
     roll = math.min(1, (e.deathTime + alpha) / 20) * math.pi / 2

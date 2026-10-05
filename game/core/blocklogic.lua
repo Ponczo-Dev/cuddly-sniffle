@@ -84,6 +84,7 @@ local PLACE_RULES = {
     return false
   end,
   [SNOW_LAYER] = function(w, x, y, z) return solidAt(w, x, y - 1, z) end,
+  [115] = function(w, x, y, z) return w:getBlock(x, y - 1, z) == 88 end,
   [55] = function(w, x, y, z) return solidAt(w, x, y - 1, z) end,
   [66] = function(w, x, y, z) return solidAt(w, x, y - 1, z) end,
   [27] = function(w, x, y, z) return solidAt(w, x, y - 1, z) end,
@@ -288,6 +289,25 @@ function L.onUse(game, x, y, z, blockId, meta)
     game:emit("open", "crafting", x, y, z)
     return true
   end
+  if blockId == 116 then
+    game:emit("open", "enchanting", x, y, z)
+    return true
+  end
+  if blockId == 117 then
+    game:getOrCreateTile(x, y, z)
+    game:emit("open", "brewing", x, y, z)
+    return true
+  end
+  if blockId == 118 then
+    return L.useCauldron(game, x, y, z, meta)
+  end
+  if blockId == 120 then
+    local held = game:heldStack()
+    if held and held.id == 381 and meta < 4 then
+      return require("core.endportal").insertEye(game, x, y, z, meta)
+    end
+    return false
+  end
   if def and def.tileEntity == "chest" then
     if solidAt(world, x, y + 1, z) then return true end -- zablokowana skrzynia
     game:emit("open", "chest", x, y, z)
@@ -310,6 +330,29 @@ end
 -- ---------------------------------------------------------------------------
 -- Zmiana sąsiada: sprawdzanie podpory, start płynięcia, spadanie
 -- ---------------------------------------------------------------------------
+-- Kocioł: wiadro wody napełnia, butelka nabiera wodę
+function L.useCauldron(game, x, y, z, meta)
+  local held = game:heldStack()
+  if not held then return false end
+  local creative = game.player.gameMode == "creative"
+  if held.id == 326 then
+    game.world:setBlock(x, y, z, 118, 3)
+    if not creative then game.inventory:set(game.selected, { id = 325, count = 1, damage = 0 }) end
+    game:emit("sound", "bucket", x + 0.5, y + 0.5, z + 0.5)
+    return true
+  end
+  if held.id == 374 and meta > 0 then
+    game.world:setBlock(x, y, z, 118, meta - 1)
+    if not creative then
+      game.inventory:decrement(game.selected, 1)
+      game:giveItem({ id = 373, count = 1, damage = 0 })
+    end
+    game:emit("sound", "bucket", x + 0.5, y + 0.5, z + 0.5)
+    return true
+  end
+  return false
+end
+
 function L.onNeighborChanged(game, x, y, z)
   local world = game.world
   local blockId, meta = world:getBlockAndMeta(x, y, z)
@@ -419,6 +462,12 @@ end
 function L.randomTick(game, x, y, z, blockId, meta)
   local world = game.world
   local rng = game.rng
+
+  if blockId == 115 then
+    -- brodawka netherowa rośnie powoli, niezależnie od światła
+    if meta < 3 and rng:chance(0.1) then world:setBlock(x, y, z, 115, meta + 1) end
+    return
+  end
 
   if blockId == GRASS then
     local above = world:getBlock(x, y + 1, z)

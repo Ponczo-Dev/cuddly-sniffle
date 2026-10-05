@@ -336,6 +336,104 @@ local SIMPLE = {
   },
 }
 
+-- Nowe przedmioty: alchemia, zaklinanie, mapy, End
+SIMPLE.potion = {
+  rows = { "................", "......wwww......", "......oCCo......", ".......oo.......",
+    ".......oo.......", "......o..o......", ".....oLLLLo.....", "....oLLWLLLo....",
+    "...oLLWLLLLLo...", "...oLLLLLLLLo...", "...oLLLLLLLdo...", "...oLLLLLLddo...",
+    "....oLLLLddo....", ".....oooooo.....", "................", "................" },
+  pal = { o = { 200, 210, 230, 220 }, w = { 160, 120, 70 }, C = { 140, 100, 55 }, W = { 255, 255, 255, 230 } },
+}
+SIMPLE.splash_potion = {
+  rows = { "................", "................", "......wwww......", "......oCCo......",
+    ".......oo.......", ".....oooooo.....", "....oLLLLLLo....", "...oLLWLLLLLo...",
+    "...oLWLLLLLLo...", "...oLLLLLLLLo...", "...oLLLLLLLdo...", "....oLLLLLddo...",
+    ".....oooooooo...", "................", "................", "................" },
+  pal = { o = { 200, 210, 230, 220 }, w = { 160, 120, 70 }, C = { 140, 100, 55 }, W = { 255, 255, 255, 230 } },
+}
+SIMPLE.nether_wart = {
+  rows = { "................", "................", "................", "......rR........",
+    ".....rRRr..rR...", ".....rRrr.rRRr..", "......rr..rRrr..", ".......r...rr...",
+    "....rR..r..r....", "...rRRr..r.r....", "...rRrr...rr....", "....rr....r.....",
+    ".....r....r.....", "......rrrr......", "................", "................" },
+  pal = { r = { 130, 20, 25 }, R = { 190, 50, 50 } },
+}
+SIMPLE.blaze_rod = {
+  rows = { "................", "............yy..", "...........yYy..", "..........yYy...",
+    ".........yYy....", "........yYy.....", ".......yYy......", "......yYy.......",
+    ".....yYy........", "....yYy.........", "...yYy..........", "..yYy...........",
+    "..yy............", "................", "................", "................" },
+  pal = { y = { 220, 140, 20 }, Y = { 255, 230, 90 } },
+}
+SIMPLE.gold_nugget = {
+  rows = { "................", "................", "................", "................",
+    "................", "......oooo......", ".....oMMmmo.....", "....oMMmmmdo....",
+    "....omMmmmdo....", ".....ommddo.....", "......oooo......", "................",
+    "................", "................", "................", "................" },
+  pal = { o = { 120, 90, 10 }, m = { 245, 210, 50 }, M = { 255, 250, 150 }, d = { 200, 160, 20 } },
+}
+SIMPLE.spider_eye = {
+  rows = { "................", "................", "................", "................",
+    ".....oooooo.....", "....oRRrrrro....", "...oRRrrrrrro...", "...orrrkkrrro...",
+    "...orrrkkrrro...", "...orrrrrrrro...", "....orrrrrro....", ".....oooooo.....",
+    "................", "................", "................", "................" },
+  pal = { o = { 70, 10, 15 }, r = { 160, 30, 45 }, R = { 210, 80, 90 }, k = { 20, 10, 10 } },
+}
+SIMPLE.eye_of_ender = {
+  rows = { "................", "................", "................", ".....oooooo.....",
+    "....oGGggggo....", "...oGGgggggdo...", "...oGgggkkgdo...", "...ogggkkkgdo...",
+    "...ogggkkggdo...", "...ogggggggdo...", "....oggggddo....", ".....oooooo.....",
+    "................", "................", "................", "................" },
+  pal = { o = { 20, 60, 50 }, g = { 60, 160, 120 }, G = { 150, 230, 190 }, d = { 40, 110, 90 },
+    k = { 15, 30, 25 } },
+}
+SIMPLE.brewing_stand = {
+  rows = { "................", ".......yy.......", ".......yy.......", ".......yy.......",
+    "....y..yy..y....", "...yyy.yy.yyy...", "....y..yy..y....", "....y..yy..y....",
+    "...ooo.yy.ooo...", "..oLLLoyyoLLLo..", "..oLLLo..oLLLo..", "...ooo....ooo...",
+    ".ssssssssssssss.", ".sSSSSSSSSSSSSs.", "................", "................" },
+  pal = { y = { 220, 170, 50 }, o = { 190, 200, 220 }, L = { 70, 90, 200 }, s = { 90, 90, 90 },
+    S = { 140, 140, 140 } },
+}
+SIMPLE.cauldron = {
+  rows = { "................", "................", "..oooooooooooo..", "..oMMMMMMMMMMo..",
+    "..omdddddddddo..", "..omdddddddddo..", "..ommmmmmmmmmo..", "..ommmmmmmmmmo..",
+    "..ommmmmmmmmmo..", "...ommmmmmmmo...", "...oooooooooo...", "...mo......om...",
+    "...oo......oo...", "................", "................", "................" },
+  pal = { o = { 30, 30, 32 }, m = { 75, 75, 80 }, M = { 110, 110, 115 }, d = { 20, 20, 22 } },
+}
+SIMPLE.compass = {
+  rows = { "................", "................", ".....oooooo.....", "....oggggggo....",
+    "...oggwwwwggo...", "..ogwwwrwwwwgo..", "..ogwwwrwwwwgo..", "..ogwwwrrwwwgo..",
+    "..ogwwwkkwwwgo..", "..ogwwwwkwwwgo..", "...ogwwwkwwgo...", "....oggggggo....",
+    ".....oooooo.....", "................", "................", "................" },
+  pal = { o = { 60, 60, 60 }, g = { 150, 150, 155 }, w = { 225, 225, 215 }, r = { 210, 30, 30 },
+    k = { 70, 70, 80 } },
+}
+SIMPLE.empty_map = {
+  rows = { "................", "..oooooooooooo..", "..oWWWWWWWWWWo..", "..oWwwwwwwwwWo..",
+    "..oWwwwwwwwwWo..", "..oWwwwwwwwwWo..", "..oWwwwwwwwwWo..", "..oWwwwwwwwwWo..",
+    "..oWwwwwwwwwWo..", "..oWwwwwwwwwWo..", "..oWwwwwwwwwWo..", "..oWWWWWWWWWWo..",
+    "..oooooooooooo..", "................", "................", "................" },
+  pal = { o = { 110, 90, 60 }, W = { 200, 180, 140 }, w = { 225, 210, 170 } },
+}
+SIMPLE.map = {
+  rows = { "................", "..oooooooooooo..", "..oWWWWWWWWWWo..", "..oWggbbbbbgWo..",
+    "..oWgggbbbggWo..", "..oWsgggbgggWo..", "..oWssggggrgWo..", "..oWbsgggrrgWo..",
+    "..oWbbsggggsWo..", "..oWbbbssssbWo..", "..oWbbbbbbbbWo..", "..oWWWWWWWWWWo..",
+    "..oooooooooooo..", "................", "................", "................" },
+  pal = { o = { 110, 90, 60 }, W = { 200, 180, 140 }, g = { 110, 160, 70 }, b = { 70, 110, 190 },
+    s = { 220, 210, 150 }, r = { 160, 60, 40 } },
+}
+SIMPLE.glistering_melon = {
+  rows = { "................", "................", "................", "....y...........",
+    "..gggggggggggg..", "..lrrrrrrryrrl..", "...lrrkrrrkrl...", "....lrrryrrl.y..",
+    ".....lrrkrl.....", "...y..lrrl......", ".......ll.......", "..........y.....",
+    "................", "................", "................", "................" },
+  pal = { g = { 200, 170, 40 }, l = { 240, 220, 120 }, r = { 230, 80, 60 }, k = { 30, 20, 20 },
+    y = { 255, 250, 150 } },
+}
+
 local ICONS = {}
 
 local function rgb(c) return { c[1], c[2], c[3] } end
@@ -426,6 +524,27 @@ function M.generate(def, damage)
     return texturegen.art(SIMPLE.ingot.rows, { o = { 60, 25, 15 }, m = { 160, 75, 55 },
       M = { 200, 110, 85 }, d = { 120, 55, 40 } })
   end
+  if key == "potion" or key == "glass_bottle" then
+    local potions = require("core.potions")
+    local splash = key == "potion" and (damage or 0) >= 1000
+    local tmplP = splash and SIMPLE.splash_potion or SIMPLE.potion
+    local p = {}
+    for k, v in pairs(tmplP.pal) do p[k] = v end
+    if key == "glass_bottle" then
+      p.L, p.d, p.W = { 220, 230, 245, 70 }, { 200, 210, 230, 90 }, { 255, 255, 255, 140 }
+    else
+      local c = potions.color(damage)
+      p.L = { c[1], c[2], c[3] }
+      p.d = { c[1] * 0.7, c[2] * 0.7, c[3] * 0.7 }
+    end
+    return texturegen.art(tmplP.rows, p)
+  end
+  if key == "fermented_spider_eye" then
+    return texturegen.art(SIMPLE.spider_eye.rows, { o = { 60, 30, 20 }, r = { 150, 90, 70 },
+      R = { 190, 130, 100 }, k = { 90, 30, 30 } })
+  end
+  if key == "blaze_powder" then return colorDust({ 240, 150, 30 }) end
+  if key == "magma_cream" then return colorBlob({ 220, 110, 30 }) end
   if key == "redstone" then return colorDust({ 200, 15, 15 }) end
   if key == "glowstone_dust" then return colorDust({ 250, 220, 110 }) end
   if key == "ghast_tear" then return colorBlob({ 200, 235, 245 }) end

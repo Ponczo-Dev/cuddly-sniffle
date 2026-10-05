@@ -142,6 +142,15 @@ local GENERATORS = {
     end)
   end,
   teleport = function() return tone(0.4, 200, 1400, "sine", 0.01, 0.15, 0.4) end,
+  drink = function() return filteredNoise(0.12, 0.2, 0.01, 0.04, 0.7) end,
+  glass = function() return filteredNoise(0.3, 0.95, 0.001, 0.12, 0.8) end,
+  brew = function() return tone(0.5, 300, 500, "sine", 0.02, 0.2, 0.3) end,
+  paper = function() return filteredNoise(0.15, 0.6, 0.01, 0.05, 0.5) end,
+  enchant = function() return tone(0.6, 500, 1500, "sine", 0.02, 0.3, 0.3) end,
+  dragon_growl = function() return tone(1.4, 90, 50, "saw", 0.1, 0.6, 0.7) end,
+  dragon_wings = function() return filteredNoise(0.5, 0.15, 0.05, 0.2, 0.8) end,
+  portal_end = function() return tone(2.0, 120, 500, "sine", 0.3, 1.0, 0.6) end,
+  voice_blaze = function() return filteredNoise(0.5, 0.6, 0.05, 0.2, 0.5) end,
   enderman_stare = function() return tone(0.8, 90, 60, "saw", 0.05, 0.4, 0.5) end,
   rain = function() return filteredNoise(2.0, 0.5, 0, 1000, 0.25) end,
   -- głosy mobów

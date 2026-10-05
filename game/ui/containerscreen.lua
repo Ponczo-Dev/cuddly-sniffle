@@ -8,6 +8,8 @@ local Container = require("core.container")
 local Inventory = require("core.inventory")
 local items = require("core.items")
 local furnace = require("core.furnace")
+local enchant = require("core.enchant")
+local potions = require("core.potions")
 local gui = require("render.gui")
 local sound = require("render.sound")
 
@@ -119,6 +121,27 @@ function M.new(game, kind, pos)
     end
     -- paliwo shift-klikiem trafia do slotu paliwa
     self.fuelAware = true
+  elseif kind == "enchanting" then
+    self.title = "Zaklinanie"
+    self.enchInv = Inventory.new(1)
+    slots[#slots + 1] = { inv = self.enchInv, i = 1, group = "enchant", gx = 25, gy = 47, temp = true,
+      max = 1, accept = function(st) return enchant.canEnchant(st) end }
+    playerSlots(game, slots, 84)
+    opts.shift = { enchant = { "hotbar", "main" }, hotbar = { "enchant" }, main = { "enchant" } }
+    self.shelves = enchant.countBookshelves(game.world, pos[1], pos[2], pos[3])
+  elseif kind == "brewing" then
+    self.title = "Statyw alchemiczny"
+    self.tile = game:getOrCreateTile(pos[1], pos[2], pos[3])
+    local inv = self.tile.inventory
+    local isPotion = function(st) return st.id == potions.POTION end
+    slots[#slots + 1] = { inv = inv, i = 1, group = "bottle", gx = 56, gy = 46, max = 1, accept = isPotion }
+    slots[#slots + 1] = { inv = inv, i = 2, group = "bottle", gx = 79, gy = 53, max = 1, accept = isPotion }
+    slots[#slots + 1] = { inv = inv, i = 3, group = "bottle", gx = 102, gy = 46, max = 1, accept = isPotion }
+    slots[#slots + 1] = { inv = inv, i = 4, group = "ingredient", gx = 79, gy = 17,
+      accept = function(st) return potions.INGREDIENTS[st.id] end }
+    playerSlots(game, slots, 84)
+    opts.shift = { bottle = { "hotbar", "main" }, ingredient = { "hotbar", "main" },
+      hotbar = { "ingredient", "bottle" }, main = { "ingredient", "bottle" } }
   end
 
   opts.onOverflow = function(stack) game:giveItem(stack) end
@@ -194,8 +217,35 @@ function Screen:draw()
     label(self.title, 8, 6)
     label("Ekwipunek", 8, self.h - 94)
   else
-    label(self.title, self.kind == "furnace" and 66 or 28, 6)
+    local tx = ({ furnace = 66, enchanting = 12, brewing = 56 })[self.kind] or 28
+    label(self.title, tx, 6)
     label("Ekwipunek", 8, 72)
+  end
+
+  -- stół do zaklinania: trzy oferty
+  if self.kind == "enchanting" then self:drawEnchanting(px, py, s, mx, my) end
+  -- statyw: postęp warzenia
+  if self.kind == "brewing" then
+    local t = self.tile
+    local bx, by = px + 97 * s, py + 16 * s
+    g.setColor(0.55, 0.55, 0.55, 1)
+    g.rectangle("fill", bx, by, 9 * s, 28 * s)
+    if (t.brew or 0) > 0 then
+      local f = 1 - t.brew / potions.BREW_TIME
+      g.setColor(1, 1, 1, 1)
+      g.rectangle("fill", bx, by, 9 * s, 28 * s * f)
+      -- bąbelki
+      local bub = math.floor(love.timer.getTime() * 6) % 6
+      g.setColor(0.6, 0.85, 1, 1)
+      g.rectangle("fill", px + 65 * s, py + (40 - bub * 4) * s, 3 * s, 3 * s)
+    end
+    -- rurki do butelek
+    g.setColor(0.45, 0.45, 0.45, 1)
+    g.rectangle("fill", px + 62 * s, py + 26 * s, 14 * s, 2 * s)
+    g.rectangle("fill", px + 98 * s, py + 26 * s, 14 * s, 2 * s)
+    g.rectangle("fill", px + 62 * s, py + 26 * s, 2 * s, 18 * s)
+    g.rectangle("fill", px + 110 * s, py + 26 * s, 2 * s, 18 * s)
+    g.setColor(1, 1, 1, 1)
   end
 
   -- strzałka craftingu
@@ -260,6 +310,8 @@ function Screen:draw()
     end
   end
 
+  if self.enchantTip then gui.tooltip(self.enchantTip, mx, my) end
+
   -- kursor
   local cur = self.container.cursor
   if cur then
@@ -269,8 +321,13 @@ function Screen:draw()
     if st then
       local lines = { items.label(st) }
       local d = items.get(st.id)
+      for _, l in ipairs(enchant.lines(st)) do lines[#lines + 1] = l end
+      if st.id == potions.POTION then
+        local tip = potions.tooltip(st.damage)
+        if tip then lines[#lines + 1] = tip end
+      end
       if d and d.maxDamage then
-        lines[2] = string.format("Wytrzymalosc: %d / %d", d.maxDamage - (st.damage or 0), d.maxDamage)
+        lines[#lines + 1] = string.format("Wytrzymalosc: %d / %d", d.maxDamage - (st.damage or 0), d.maxDamage)
       end
       if d and d.armor then lines[#lines + 1] = "Ochrona: +" .. d.armor.points end
       if d and d.food then lines[#lines + 1] = "Glod: +" .. d.food.hunger end
@@ -279,9 +336,101 @@ function Screen:draw()
   end
 end
 
+-- Przyciski ofert stołu do zaklinania (współrzędne ekranu)
+function Screen:offerRects()
+  local px, py, s = self:layout()
+  local list = {}
+  for i = 1, 3 do
+    list[i] = { x = px + 60 * s, y = py + (14 + (i - 1) * 19) * s, w = 108 * s, h = 19 * s }
+  end
+  return list
+end
+
+local GLYPHS = "abcdefghijklmnopqrstuvwxyz"
+
+function Screen:updateOffers()
+  local st = self.enchInv.slots[1]
+  if st ~= self.offerItem then
+    self.offerItem = st
+    self.offers = st and enchant.canEnchant(st) and enchant.offerLevels(self.game.rng, self.shelves) or nil
+    self.glyphs = {}
+    for i = 1, 3 do
+      local w = {}
+      for k = 1, 3 + math.random(0, 3) do
+        local a = math.random(1, #GLYPHS)
+        w[k] = GLYPHS:sub(a, a) .. GLYPHS:sub((a % #GLYPHS) + 1, (a % #GLYPHS) + 1)
+      end
+      self.glyphs[i] = table.concat(w, " ")
+    end
+  end
+end
+
+function Screen:drawEnchanting(px, py, s, mx, my)
+  local g = love.graphics
+  self:updateOffers()
+  local game = self.game
+  local creative = game.player.gameMode == "creative"
+  -- księga obok slotu
+  g.setColor(0.45, 0.2, 0.12, 1)
+  g.rectangle("fill", px + 14 * s, py + 22 * s, 18 * s, 13 * s)
+  g.setColor(0.93, 0.9, 0.8, 1)
+  g.rectangle("fill", px + 16 * s, py + 23 * s, 14 * s, 11 * s)
+  g.setColor(0.45, 0.2, 0.12, 1)
+  g.rectangle("fill", px + 22.5 * s, py + 23 * s, 1 * s, 11 * s)
+  g.setFont(gui.font(0.75))
+  g.setColor(0.3, 0.3, 0.3)
+  g.print("Biblioteczki: " .. self.shelves, px + 8 * s, py + 66 * s)
+  local hoverTip
+  for i, r in ipairs(self:offerRects()) do
+    local cost = self.offers and self.offers[i]
+    local can = cost and (creative or game.xpLevel >= cost)
+    local hover = mx >= r.x and mx < r.x + r.w and my >= r.y and my < r.y + r.h
+    if not cost then
+      g.setColor(0.42, 0.37, 0.35, 1)
+    elseif can then
+      g.setColor(hover and 0.85 or 0.72, hover and 0.75 or 0.62, hover and 0.6 or 0.5, 1)
+    else
+      g.setColor(0.4, 0.33, 0.3, 1)
+    end
+    g.rectangle("fill", r.x, r.y, r.w, r.h - s)
+    g.setColor(0.2, 0.15, 0.12, 1)
+    g.setLineWidth(s)
+    g.rectangle("line", r.x, r.y, r.w, r.h - s)
+    if cost then
+      g.setFont(gui.font(0.8))
+      g.setColor(can and 0.35 or 0.25, can and 0.25 or 0.2, can and 0.2 or 0.18, 1)
+      g.print(self.glyphs[i], r.x + 3 * s, r.y + 5 * s)
+      local str = tostring(cost)
+      local f = gui.font()
+      g.setFont(f)
+      g.setColor(can and 0.5 or 0.25, can and 1 or 0.45, can and 0.15 or 0.1, 1)
+      g.print(str, r.x + r.w - f:getWidth(str) - 3 * s, r.y + 5 * s)
+      if hover then
+        hoverTip = { "Koszt: " .. cost .. " poz. doswiadczenia" }
+        if not can then hoverTip[2] = "Za malo doswiadczenia (masz " .. game.xpLevel .. ")" end
+      end
+    end
+  end
+  g.setColor(1, 1, 1, 1)
+  self.enchantTip = hoverTip
+end
+
 function Screen:mousepressed(x, y, button)
   local b = button == 1 and "left" or (button == 2 and "right" or nil)
   if not b then return end
+  if self.kind == "enchanting" and b == "left" and self.offers and not self.container.cursor then
+    for i, r in ipairs(self:offerRects()) do
+      if x >= r.x and x < r.x + r.w and y >= r.y and y < r.y + r.h then
+        local st = self.enchInv.slots[1]
+        if st and enchant.apply(self.game, st, self.offers[i]) then
+          sound.play("levelup", nil, nil, nil, 0.8)
+          self.offerItem = nil
+          self.enchInv.changed = true
+        end
+        return
+      end
+    end
+  end
   local n, sl = self:slotAt(x, y)
   local c = self.container
   local shift = love.keyboard.isDown("lshift", "rshift")
@@ -352,7 +501,7 @@ function Screen:keypressed(key)
     if st and sl.group ~= "result" then
       local all = love.keyboard.isDown("lctrl", "rctrl")
       local k = all and st.count or 1
-      self.game:throwStack({ id = st.id, count = k, damage = st.damage })
+      self.game:throwStack({ id = st.id, count = k, damage = st.damage, ench = st.ench })
       st.count = st.count - k
       if st.count <= 0 then sl.inv.slots[sl.i] = nil end
       if sl.group == "craft" then self.container:updateCrafting() end

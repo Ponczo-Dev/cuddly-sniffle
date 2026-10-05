@@ -126,7 +126,7 @@ M.TICK = {}
 -- Leżący przedmiot
 function M.newItem(x, y, z, stack, vx, vy, vz)
   local e = M.base("item", x, y, z, 0.25, 0.25)
-  e.stack = { id = stack.id, count = stack.count, damage = stack.damage or 0 }
+  e.stack = { id = stack.id, count = stack.count, damage = stack.damage or 0, ench = stack.ench }
   e.vx, e.vy, e.vz = vx or 0, vy or 0.2, vz or 0
   e.pickupDelay = 10
   e.spin = math.random() * math.pi * 2

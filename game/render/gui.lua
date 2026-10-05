@@ -100,6 +100,15 @@ function M.drawStack(stack, x, y, size)
   size = size or 16 * M.scale
   g.setColor(1, 1, 1, 1)
   icons.draw(stack.id, stack.damage, x, y, size)
+  if stack.ench then
+    -- poświata zaklętego przedmiotu
+    local t = love.timer.getTime()
+    g.setBlendMode("add")
+    g.setColor(0.4, 0.15, 0.7, 0.45 + math.sin(t * 3 + x * 0.05) * 0.2)
+    icons.draw(stack.id, stack.damage, x, y, size)
+    g.setBlendMode("alpha")
+    g.setColor(1, 1, 1, 1)
+  end
   local d = items.get(stack.id)
   if d and d.maxDamage and (stack.damage or 0) > 0 then
     local f = 1 - stack.damage / d.maxDamage

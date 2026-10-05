@@ -162,7 +162,8 @@ end
 
 -- Wywoływane z game.lua / survival.lua, gdy game.remoteCtx jest ustawiony
 function Server:giveTo(ctx, stack)
-  self:send(ctx, { t = "give", id = stack.id, count = stack.count, damage = stack.damage or 0 })
+  self:send(ctx, { t = "give", id = stack.id, count = stack.count, damage = stack.damage or 0,
+    ench = stack.ench })
   return 0
 end
 
@@ -409,8 +410,12 @@ function Server.attackEntity(self, ctx, e, msg)
   if not e.isMob then return end
   local dmg = math.max(0, math.min(30, tonumber(msg.dmg) or 1))
   local p = ctx.player
-  if mobs.damageMob(game, e, dmg, "player", { x = p.x, z = p.z, knockback = msg.kb == 2 and 2 or 1 }) then
+  local kb = math.max(1, math.min(4, tonumber(msg.kb) or 1))
+  if mobs.damageMob(game, e, dmg, "player", { x = p.x, z = p.z, knockback = kb }) then
     e.lastHitByPlayer = 100
+    e.looting = math.max(0, math.min(3, tonumber(msg.loot) or 0))
+    local fire = math.max(0, math.min(2, tonumber(msg.fire) or 0))
+    if fire > 0 then e.fireTicks = math.max(e.fireTicks or 0, 80 * fire) end
     if e.def.neutral then e.angry = p; e.target = p end
     if e.kind == "wolf" and not e.tamed then e.angry = p end
     if e.kind == "pigman" then
@@ -443,7 +448,7 @@ function Server:spawnFromClient(ctx, s)
   if s.type == "item" then
     if type(s.stack) ~= "table" or not items.get(s.stack.id) then return end
     e.stack = { id = s.stack.id, count = math.max(1, math.min(64, s.stack.count or 1)),
-      damage = s.stack.damage or 0 }
+      damage = s.stack.damage or 0, ench = type(s.stack.ench) == "table" and s.stack.ench or nil }
     e.pickupDelay = math.max(e.pickupDelay or 10, 10)
   elseif s.type == "arrow" or s.type == "snowball" or s.type == "egg" or s.type == "pearl" then
     e.shooter = ctx.player
@@ -460,7 +465,7 @@ function Server:sendTile(ctx, x, y, z)
   local tile = game:getOrCreateTile(x, y, z)
   if not tile or not tile.inventory then return end
   self:send(ctx, { t = "tile", x = x, y = y, z = z, kind = tile.kind, inv = tile.inventory:serialize(),
-    burn = tile.burn, burnMax = tile.burnMax, cook = tile.cook })
+    burn = tile.burn, burnMax = tile.burnMax, cook = tile.cook, brew = tile.brew })
 end
 
 -- ---------------------------------------------------------------------------
@@ -632,7 +637,9 @@ function Server:tick()
       if ctx.watch and self.ticks % 10 == 0 then
         for _, pos in ipairs(ctx.watch) do
           local tile = game.world:getTile(pos[1], pos[2], pos[3])
-          if tile and tile.kind == "furnace" then self:sendTile(ctx, pos[1], pos[2], pos[3]) end
+          if tile and (tile.kind == "furnace" or tile.kind == "brewing") then
+            self:sendTile(ctx, pos[1], pos[2], pos[3])
+          end
         end
       end
     end
