@@ -135,6 +135,8 @@ shaped(id("piston"), 1, { "PPP", "CIC", "CRC" }, { P = id("planks"), C = id("cob
 shaped(id("sticky_piston"), 1, { "S", "P" }, { S = id("slimeball"), P = id("piston") })
 shaped(id("fence"), 2, { "SSS", "SSS" }, { S = S })
 
+shaped(id("glowstone"), 1, { "##", "##" }, { ["#"] = id("glowstone_dust") })
+
 -- tory i pojazdy
 shaped(id("rail"), 16, { "I I", "ISI", "I I" }, { I = id("iron_ingot"), S = S })
 shaped(id("powered_rail"), 6, { "G G", "GSG", "GRG" }, { G = id("gold_ingot"), S = S, R = id("redstone") })

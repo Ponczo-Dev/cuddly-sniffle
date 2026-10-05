@@ -55,6 +55,12 @@ M.DEFS = {
   creeper = { label = "Creeper", w = 0.6, h = 1.7, health = 20, speed = 0.1, hostile = true,
     explodes = true, xp = { 5, 5 },
     drops = function(rng) return { { 289, rng:int(0, 2) } } end },
+  pigman = { label = "Zombie pigman", w = 0.6, h = 1.8, health = 20, speed = 0.1, hostile = true,
+    neutral = true, damage = { 5, 7, 9 }, xp = { 5, 5 }, nether = true,
+    drops = function(rng) return { { 367, rng:int(0, 1) }, { 320, rng:int(0, 1) } } end },
+  ghast = { label = "Ghast", w = 4, h = 4, health = 10, speed = 0.05, hostile = true, flying = true,
+    xp = { 5, 5 }, nether = true,
+    drops = function(rng) return { { 289, rng:int(0, 2) }, { 370, rng:int(0, 1) } } end },
   enderman = { label = "Enderman", w = 0.6, h = 2.9, health = 40, speed = 0.15, hostile = true,
     neutral = true, damage = { 4, 7, 10 }, teleports = true, xp = { 5, 5 },
     drops = function(rng) return { { 368, rng:int(0, 1) } } end },
@@ -178,6 +184,11 @@ end
 -- Fizyka moba (grawitacja, woda, wspinanie pająka)
 local function physicsStep(game, e)
   local world = game.world
+  if e.def.flying and e.deathTime == 0 then
+    physics.move(world, e, e.vx, e.vy, e.vz, false)
+    e.vx, e.vy, e.vz = e.vx * 0.9, e.vy * 0.9, e.vz * 0.9
+    return
+  end
   e.inWater = physics.inLiquid(world, e, "water")
   e.inLava = physics.inLiquid(world, e, "lava")
   if e.inWater or e.inLava then
@@ -256,6 +267,11 @@ function M.damageMob(game, e, amount, source, attacker)
     elseif e.def.neutral or e.kind == "spider" then
       e.angry = attacker
       e.target = attacker
+    end
+    if e.kind == "pigman" and attacker == game.player then
+      for _, o in ipairs(game.entities:near(e.x, e.y, e.z, 32, "mob")) do
+        if o.kind == "pigman" then o.angry = game.player end
+      end
     end
     if e.def.teleports then M.teleportRandom(game, e) end
   end
@@ -825,7 +841,7 @@ local function hostileAI(game, e)
   local world = game.world
 
   -- palenie się w słońcu
-  if d.burns and game:daylight() > 0.6 and not e.inWater then
+  if d.burns and game.dimension == "overworld" and game:daylight() > 0.6 and not e.inWater then
     local bx, by, bz = floor(e.x), floor(e.y + e.height - 0.2), floor(e.z)
     if world:getSkyLight(bx, by, bz) >= 15 and not game:isRainingAt(e.x, e.y + 1, e.z)
       and game.rng:chance(0.05) then
@@ -993,6 +1009,8 @@ entities.TICK.mob = function(game, e)
   local d = e.def
   if e.kind == "wolf" then
     wolfAI(game, e)
+  elseif e.kind == "ghast" then
+    M.ghastAI(game, e)
   elseif d.hostile then
     hostileAI(game, e)
   else
@@ -1013,10 +1031,83 @@ entities.TICK.mob = function(game, e)
 end
 
 -- ---------------------------------------------------------------------------
+-- Ghast: lata, strzela kulami ognia, które wybuchają i podpalają
+-- ---------------------------------------------------------------------------
+function M.ghastAI(game, e)
+  local p = game.player
+  e.stateTimer = e.stateTimer - 1
+  if e.stateTimer <= 0 or not e.wanderX then
+    e.wanderX = e.x + (game.rng:next() - 0.5) * 32
+    e.wanderY = math.max(35, math.min(110, e.y + (game.rng:next() - 0.5) * 16))
+    e.wanderZ = e.z + (game.rng:next() - 0.5) * 32
+    e.stateTimer = game.rng:int(60, 160)
+  end
+  local dx, dy, dz = e.wanderX - e.x, e.wanderY - e.y, e.wanderZ - e.z
+  local d = sqrt(dx * dx + dy * dy + dz * dz)
+  if d > 1 then
+    e.vx = e.vx + dx / d * 0.02
+    e.vy = e.vy + dy / d * 0.02
+    e.vz = e.vz + dz / d * 0.02
+  end
+  if e.collidedH then e.wanderX = nil end
+  local tdx, tdz = p.x - e.x, p.z - e.z
+  local dist = sqrt(tdx * tdx + tdz * tdz + (p.y - e.y) ^ 2)
+  if dist < 64 and not game.dead and p.gameMode ~= "creative" then
+    faceTowards(e, p.x, p.z, 0.3)
+    if e.age % 10 == 0 then
+      local ex, ey, ez = p:eyePosition()
+      e.seesTarget = canSee(game, e, ex, ey, ez)
+    end
+    if e.seesTarget then
+      e.charge = (e.charge or 0) + 1
+      if e.charge == 10 then game:emit("sound", "voice_ghast", e.x, e.y + 2, e.z) end
+      if e.charge >= 20 then
+        e.charge = -40
+        local sx, sy, sz = e.x, e.y + 2, e.z
+        local fx, fy, fz = p.x - sx, p.y + 1 - sy, p.z - sz
+        local fl = sqrt(fx * fx + fy * fy + fz * fz)
+        local f = entities.newThrown("fireball", sx + fx / fl * 2.5, sy + fy / fl * 2.5, sz + fz / fl * 2.5,
+          fx / fl * 0.6, fy / fl * 0.6, fz / fl * 0.6, e)
+        game.entities:add(f)
+        game:emit("sound", "bow", sx, sy, sz)
+      end
+    elseif (e.charge or 0) > 0 then
+      e.charge = e.charge - 1
+    end
+  end
+end
+
+entities.TICK.fireball = function(game, f)
+  local kind, what = stepProjectile(game, f, 0, 1.0)
+  if game.rng:chance(0.5) then game:emit("particles", "flame", f.x, f.y, f.z) end
+  if kind then
+    f.dead = true
+    if kind == "entity" and what == game.player then
+      game.survival.damage(game, 4, "fire", f.shooter)
+      game.fireTicks = 100
+    elseif kind == "entity" then
+      M.damageMob(game, what, 4, "fire")
+    end
+    M.explode(game, f.x, f.y, f.z, 1, f)
+    -- podpalenie okolicy
+    for _ = 1, 6 do
+      local x = math.floor(f.x) + game.rng:int(-2, 2)
+      local y = math.floor(f.y) + game.rng:int(-1, 1)
+      local z = math.floor(f.z) + game.rng:int(-2, 2)
+      if game.world:getBlock(x, y, z) == 0 and blocks.OPAQUE[game.world:getBlock(x, y - 1, z)] == 1 then
+        game.world:setBlock(x, y, z, 51, 0)
+      end
+    end
+  end
+  if f.age > 300 then f.dead = true end
+end
+
+-- ---------------------------------------------------------------------------
 -- Spawnowanie
 -- ---------------------------------------------------------------------------
 local HOSTILE_KINDS = { "zombie", "zombie", "skeleton", "skeleton", "spider", "creeper",
   "creeper", "enderman" }
+local NETHER_KINDS = { "pigman", "pigman", "pigman", "pigman", "ghast" }
 local PASSIVE_KINDS = { "pig", "cow", "sheep", "sheep", "chicken", "wolf" }
 
 local function canSpawnAt(game, x, y, z, w, h)
@@ -1051,8 +1142,21 @@ local function trySpawnHostile(game)
   local dx, dy, dz = x + 0.5 - p.x, y - p.y, z + 0.5 - p.z
   local d2 = dx * dx + dy * dy + dz * dz
   if d2 < 24 * 24 then return end
-  if game:lightAt(x, y, z) > 7 then return end
+  local nether = game.dimension == "nether"
+  if not nether and game:lightAt(x, y, z) > 7 then return end
   local kind = HOSTILE_KINDS[rng:int(1, #HOSTILE_KINDS)]
+  if nether then
+    kind = NETHER_KINDS[rng:int(1, #NETHER_KINDS)]
+    if kind == "ghast" then
+      -- ghast potrzebuje dużo miejsca w powietrzu
+      local gy = y + 3
+      for ox = -2, 2 do for oy = 0, 4 do for oz = -2, 2 do
+        if world:getBlock(x + ox, gy + oy, z + oz) ~= 0 then return end
+      end end end
+      M.spawn(game, "ghast", x + 0.5, gy, z + 0.5)
+      return
+    end
+  end
   if kind == "enderman" and rng:chance(0.7) then kind = "zombie" end
   local d = DEFS[kind]
   local group = rng:int(1, kind == "enderman" and 1 or 3)
@@ -1060,7 +1164,7 @@ local function trySpawnHostile(game)
     local sx, sz = x + rng:int(-2, 2), z + rng:int(-2, 2)
     local sy = y
     if world:getBlock(sx, sy, sz) == 0 and canSpawnAt(game, sx, sy, sz, d.w, d.h)
-      and game:lightAt(sx, sy, sz) <= 7 then
+      and (nether or game:lightAt(sx, sy, sz) <= 7) then
       M.spawn(game, kind, sx + 0.5, sy, sz + 0.5)
     end
   end
@@ -1161,7 +1265,7 @@ function M.tick(game)
     for _, e in ipairs(game.entities.list) do
       if e.isMob and e.def.passive and not e.dead then animals = animals + 1 end
     end
-    if animals < 12 then
+    if animals < 12 and game.dimension == "overworld" then
       local p = game.player
       local cx = floor(p.x / 16) + game.rng:int(-4, 4)
       local cz = floor(p.z / 16) + game.rng:int(-4, 4)

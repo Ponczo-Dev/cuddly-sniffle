@@ -26,6 +26,7 @@ uniform vec3 u_fogColor;
 uniform float u_fogStart;
 uniform float u_fogEnd;
 uniform float u_alphaCut;   // próg odcięcia przezroczystości
+uniform float u_ambient;    // minimalna jasność (Nether)
 varying float v_dist;
 
 // Krzywa jasności jak w Minecraft Beta: l / (4 - 3l)
@@ -38,7 +39,7 @@ vec4 effect(vec4 color, Image tex, vec2 uv, vec2 screen) {
   if (t.a < u_alphaCut) discard;
   float sky = curve(color.r * u_daylight);
   float blk = curve(color.g);
-  vec3 light = max(vec3(sky), vec3(blk) * vec3(1.0, 0.92, 0.78));
+  vec3 light = max(vec3(max(sky, u_ambient)), vec3(blk) * vec3(1.0, 0.92, 0.78));
   vec3 rgb = t.rgb * light * color.b;
   float fog = clamp((v_dist - u_fogStart) / (u_fogEnd - u_fogStart), 0.0, 1.0);
   rgb = mix(rgb, u_fogColor, fog);
@@ -83,6 +84,7 @@ function M.load()
   M.chunk = love.graphics.newShader(CHUNK_PIXEL, COMMON_VERTEX)
   M.entity = love.graphics.newShader(ENTITY_PIXEL, ENTITY_VERTEX)
   M.entity:send("u_tint", { 0, 0, 0, 0 })
+  M.chunk:send("u_ambient", 0)
   M.entity:send("u_light", 1)
   return M
 end

@@ -205,6 +205,27 @@ local function buildModels()
     legH = 30, bodyH = 12, armH = 30,
     face = { B(-3.5, 45, -4.1, -1, 46, -4, purple), B(1, 45, -4.1, 3.5, 46, -4, purple) } }
 
+  -- zombie pigman: różowa skóra, poszarpane ubranie
+  local pskin = { 0.92, 0.6, 0.6 }
+  MODELS.pigman = biped { legs = { 0.55, 0.45, 0.3 }, body = { 0.6, 0.5, 0.35 }, arms = pskin,
+    head = pskin, armAnim = "zombieArm",
+    face = { B(-3, 27, -4.1, -1, 28, -4, black), B(1, 27, -4.1, 3, 28, -4, black),
+      B(-2, 24.5, -4.3, 2, 26.5, -4, { 0.85, 0.5, 0.5 }), B(-4, 28, -4.05, 4, 32, -4, { 0.5, 0.75, 0.45 }) } }
+
+  -- ghast: wielki biały sześcian z mackami
+  local gw = { 0.94, 0.94, 0.94 }
+  local ghastBody = { B(-32, 16, -32, 32, 80, 32, gw),
+    B(-20, 48, -32.2, -8, 56, -32, black), B(8, 48, -32.2, 20, 56, -32, black),
+    B(-8, 28, -32.2, 8, 34, -32, { 0.5, 0.5, 0.5 }) }
+  local tentacles = {}
+  for i = 0, 2 do
+    for j = 0, 2 do
+      local tx, tz = -20 + i * 20, -20 + j * 20
+      tentacles[#tentacles + 1] = B(tx - 2, -16 + (i + j) % 3 * 4, tz - 2, tx + 2, 16, tz + 2, gw)
+    end
+  end
+  MODELS.ghast = { part(ghastBody, { 0, 0, 0 }, "body"), part(tentacles, { 0, 16, 0 }, "tentacles") }
+
   -- gracz (widok z trzeciej osoby)
   local skin = { 0.85, 0.62, 0.48 }
   MODELS.player = biped { legs = { 0.25, 0.2, 0.6 }, body = { 0.0, 0.65, 0.65 }, arms = skin,
@@ -373,6 +394,7 @@ local function partAngle(p, e, t)
   end
   if p.anim == "skeletonArm" then return -math.pi / 2 * (e.target and 1 or 0) + swing * 0.5, 0 end
   if p.anim == "head" then return (e.headPitch or 0), 0 end
+  if p.anim == "tentacles" then return math.sin(t * 2 + (e.id or 0)) * 0.1, 0 end
   if p.anim == "spiderLeftLeg" or p.anim == "spiderRightLeg" then
     local side = p.anim == "spiderLeftLeg" and 1 or -1
     local spread = (p.phase - 1.5) * 0.35

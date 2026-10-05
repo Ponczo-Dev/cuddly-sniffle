@@ -43,42 +43,15 @@ function M.new(opts)
   self.name = opts.name or "Swiat"
   self.difficulty = opts.difficulty or 2 -- 0 spokojny, 1 łatwy, 2 normalny, 3 trudny
   self.hardcore = opts.hardcore or false
-  -- generator świata: domyślnie prawdziwy teren z seeda
-  local generator = opts.generator
-  if generator == nil then
-    local gen = worldgen.new(self.seed)
-    self.gen = gen
-    self.biomeAt = function(x, z) return (gen:biome(x, z)) end
-    generator = function(chunk) gen:generate(chunk) end
-  end
-  self.pendingAnimalChunks = {}
-  local animalRng = Rng.new(Rng.hash(self.seed, 555))
-  -- zapis: chunki wczytywane z dysku, zapisywane przy zwalnianiu
+  self.opts = opts
   self.saveFolder = opts.saveFolder
-  local loader, onUnload = opts.loader, opts.onUnload
-  if self.saveFolder then
-    local folder = self.saveFolder
-    loader = function(cx, cz) return save.loadChunk(folder, cx, cz) end
-    onUnload = function(chunk)
-      local list = save.collectEntities(self, chunk, true)
-      if #list > 0 then chunk.savedEntities = list end
-      if chunk.modified or #list > 0 then save.saveChunk(folder, chunk) end
-      chunk.savedEntities = nil
-    end
-  end
-  local onCreate = function(chunk, fromDisk)
-    if fromDisk then
-      save.restoreEntities(self, chunk)
-    elseif self.gen and animalRng:chance(0.12) then
-      self.pendingAnimalChunks[#self.pendingAnimalChunks + 1] = { chunk.cx, chunk.cz }
-    end
-  end
-  local light = opts.lighting
-  if light == nil then light = lighting end
-  self.world = World.new({
-    seed = self.seed, generator = generator or nil, lighting = light or nil,
-    loader = loader, onUnload = onUnload, onCreate = onCreate,
-  })
+  self.pendingAnimalChunks = {}
+  self.animalRng = Rng.new(Rng.hash(self.seed, 555))
+  self.dimension = "overworld"
+  self.worlds = {}
+  self.entitiesByDim = {}
+  self.world = self:makeWorld("overworld")
+  self.worlds.overworld = self.world
   self.world:addListener(self)
   self.rng = Rng.new(Rng.hash(self.seed, 99))
   self.player = Player.new(0.5, 100, 0.5)
@@ -88,6 +61,7 @@ function M.new(opts)
   self.armor = Inventory.new(4)
   self.selected = 1
   self.entities = entities.new(self)
+  self.entitiesByDim.overworld = self.entities
   self.time = 0              -- ticki od startu świata
   self.dayTime = 1000        -- 0..23999 (0 = wschód, 6000 = południe)
   self.events = {}
@@ -111,6 +85,93 @@ function M.new(opts)
   mobs.init(self)
   self.worldSpawnX, self.worldSpawnY, self.worldSpawnZ = 0.5, 80, 0.5
   return self
+end
+
+-- ---------------------------------------------------------------------------
+-- Wymiary: zwykły świat i Nether (osobne chunki, byty i pliki zapisu)
+-- ---------------------------------------------------------------------------
+function Game:makeWorld(dim)
+  local opts = self.opts
+  local generator
+  if dim == "nether" then
+    local nethergen = require("core.nethergen")
+    local gen = nethergen.new(self.seed)
+    generator = function(chunk) gen:generate(chunk) end
+  else
+    generator = opts.generator
+    if generator == nil then
+      local gen = worldgen.new(self.seed)
+      self.gen = gen
+      self.overworldBiome = function(x, z) return (gen:biome(x, z)) end
+      self.biomeAt = self.overworldBiome
+      generator = function(chunk) gen:generate(chunk) end
+    end
+  end
+  local loader, onUnload = opts.loader, opts.onUnload
+  if self.saveFolder then
+    local folder = self.saveFolder
+    loader = function(cx, cz) return save.loadChunk(folder, cx, cz, dim) end
+    onUnload = function(chunk)
+      local list = save.collectEntities(self, chunk, true)
+      if #list > 0 then chunk.savedEntities = list end
+      if chunk.modified or #list > 0 then save.saveChunk(folder, chunk, dim) end
+      chunk.savedEntities = nil
+    end
+  end
+  local onCreate = function(chunk, fromDisk)
+    if fromDisk then
+      save.restoreEntities(self, chunk)
+    elseif dim == "overworld" and self.gen and self.animalRng:chance(0.12) then
+      self.pendingAnimalChunks[#self.pendingAnimalChunks + 1] = { chunk.cx, chunk.cz }
+    end
+  end
+  local light = opts.lighting
+  if light == nil then light = lighting end
+  local w = World.new({
+    seed = self.seed, generator = generator or nil, lighting = light or nil,
+    loader = loader, onUnload = onUnload, onCreate = onCreate,
+  })
+  w.dimension = dim
+  if dim == "nether" then w.noSky = true end
+  return w
+end
+
+-- Ustawia wymiar bez teleportu (np. po wczytaniu zapisu)
+function Game:setDimension(dim)
+  if dim == self.dimension then return end
+  self.entitiesByDim[self.dimension] = self.entities
+  self.dimension = dim
+  self.world = self.worlds[dim]
+  if not self.world then
+    self.world = self:makeWorld(dim)
+    self.worlds[dim] = self.world
+    self.world:addListener(self)
+  end
+  self.entities = self.entitiesByDim[dim] or entities.new(self)
+  self.entitiesByDim[dim] = self.entities
+  if dim == "nether" then
+    local nb = require("core.nethergen").BIOME
+    self.biomeAt = function() return nb end
+  else
+    self.biomeAt = self.overworldBiome
+  end
+end
+
+-- Przejście do innego wymiaru: zapis i zwolnienie starego, przygotowanie nowego
+function Game:changeDimension(dim, x, y, z)
+  local old = self.world
+  -- zapis stanu i zwolnienie wszystkich chunków poprzedniego wymiaru
+  old:unloadFar(0, 0, -1)
+  for _, e in ipairs(self.entities.list) do e.dead = true end
+  self.entities.list = {}
+  self.scheduled, self.scheduledSet = {}, {}
+  self.mining = nil
+  self:setDimension(dim)
+  local p = self.player
+  p.x, p.y, p.z = x, y, z
+  p.prevX, p.prevY, p.prevZ = x, y, z
+  self.world:updateLoading(floor(x / 16), floor(z / 16), 1, 1000)
+  self:emit("dimension", dim)
 end
 
 -- ---------------------------------------------------------------------------
@@ -528,7 +589,9 @@ function Game:useItem(hit)
     else
       local fx, fy, fz = hit.x + hit.nx, hit.y + hit.ny, hit.z + hit.nz
       if world:getBlock(fx, fy, fz) == 0 then
-        world:setBlock(fx, fy, fz, 51, 0)
+        if not require("core.portal").tryLight(self, fx, fy, fz) then
+          world:setBlock(fx, fy, fz, 51, 0)
+        end
         self:emit("sound", "ignite", fx + 0.5, fy + 0.5, fz + 0.5)
       end
     end
@@ -594,6 +657,12 @@ function Game:useBucket(stack, d)
   local cur = world:getBlock(x, y, z)
   local cd = defs[cur]
   if cur ~= 0 and not (cd and cd.replaceable) then return false end
+  if self.dimension == "nether" and d.fluid == 8 then
+    self:emit("sound", "fizz", x + 0.5, y + 0.5, z + 0.5)
+    self:emit("particles", "smoke", x + 0.5, y + 0.5, z + 0.5)
+    if p.gameMode ~= "creative" then self.inventory:set(self.selected, items.newStack(325)) end
+    return true
+  end
   self:destroyByLiquid(x, y, z)
   world:setBlock(x, y, z, d.fluid, 0)
   self:scheduleTick(x, y, z, 1)
@@ -764,6 +833,7 @@ end
 -- ---------------------------------------------------------------------------
 -- Jasność nieba 0..1 (jak w MC: najciemniej w nocy 0.2 * 15 = ~4)
 function Game:daylight()
+  if self.dimension == "nether" then return 0.2 end
   local t = (self.dayTime % M.DAY_LENGTH) / M.DAY_LENGTH -- 0 = wschód (6:00)
   -- kąt słońca: 0 w południe
   local angle = t - 0.25
@@ -803,6 +873,11 @@ end
 -- Spanie w łóżku
 -- ---------------------------------------------------------------------------
 function Game:trySleep(x, y, z, meta)
+  if self.dimension == "nether" then
+    self.world:setBlock(x, y, z, 0, 0)
+    self:explode(x + 0.5, y + 0.5, z + 0.5, 5)
+    return
+  end
   if not self:isNight() then
     self:emit("message", "Mozesz spac tylko w nocy")
     self.spawnX, self.spawnY, self.spawnZ = x + 0.5, y + 1, z + 0.5
@@ -855,7 +930,7 @@ function Game:tickWeather()
   elseif w.strength > target then w.strength = math.max(target, w.strength - 0.01) end
 
   -- piorun podczas burzy
-  if w.thunder and w.strength > 0.9 and self.rng:chance(1 / 2000) then
+  if w.thunder and w.strength > 0.9 and self.dimension == "overworld" and self.rng:chance(1 / 2000) then
     local p = self.player
     local lx = floor(p.x) + self.rng:int(-48, 48)
     local lz = floor(p.z) + self.rng:int(-48, 48)
@@ -928,6 +1003,7 @@ function Game:tick()
       p:tick(self.world, self.survival.canSprint(self))
     end
     self:tickInteraction()
+    require("core.portal").tick(self)
   end
 
   self.survival.tick(self)
@@ -978,7 +1054,7 @@ function Game:saveAll()
     local list = save.collectEntities(self, chunk, false)
     if #list > 0 then chunk.savedEntities = list end
     if chunk.modified or #list > 0 then
-      save.saveChunk(folder, chunk)
+      save.saveChunk(folder, chunk, self.dimension)
       n = n + 1
     end
     chunk.savedEntities = nil

@@ -90,11 +90,12 @@ function M.lightChunk(world, chunk)
   local b, sky, bl = chunk.blocks, chunk.sky, chunk.blockLight
   qreset()
 
-  -- 1) kolumny: światło nieba z góry w dół
+  -- 1) kolumny: światło nieba z góry w dół (w Netherze nieba nie ma)
+  local noSky = world.noSky
   local maxH = 0
   for lz = 0, SIZE - 1 do
     for lx = 0, SIZE - 1 do
-      local l = 15
+      local l = noSky and 0 or 15
       for y = HEIGHT - 1, 0, -1 do
         local i = lx + lz * SIZE + y * 256
         if l > 0 then
@@ -114,7 +115,7 @@ function M.lightChunk(world, chunk)
   end
 
   -- 2) rozchodzenie w bok: komórki poniżej najwyższego terenu w okolicy
-  for lz = 0, SIZE - 1 do
+  for lz = 0, (noSky and -1 or SIZE - 1) do
     for lx = 0, SIZE - 1 do
       local top = chunk.heightMap[lx + lz * SIZE]
       -- najwyższy sąsiad (światło wpada z boku pod nawisy)
@@ -132,8 +133,10 @@ function M.lightChunk(world, chunk)
     end
   end
   -- światło z oświetlonych już sąsiadów
-  M.pullFromNeighbors(world, chunk, true)
-  propagate(world, true)
+  if not noSky then
+    M.pullFromNeighbors(world, chunk, true)
+    propagate(world, true)
+  end
 
   -- 3) światło bloków (pochodnie, lawa...)
   for i = 0, SIZE * SIZE * HEIGHT - 1 do
@@ -286,7 +289,7 @@ end
 
 function M.onBlockChanged(world, x, y, z, oldId, newId)
   lastKey = nil
-  if OPACITY[oldId] ~= OPACITY[newId] then
+  if OPACITY[oldId] ~= OPACITY[newId] and not world.noSky then
     relight(world, x, y, z, true, newId)
     -- przy postawieniu bloku światło nieba pod nim musi zgasnąć całą kolumną
     if OPACITY[newId] > 0 then

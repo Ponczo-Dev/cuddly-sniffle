@@ -168,6 +168,8 @@ local GENERATORS = {
   end,
   voice_spider = function() return filteredNoise(0.4, 0.7, 0.02, 0.15, 0.6) end,
   voice_creeper = function() return filteredNoise(0.3, 0.8, 0.02, 0.1, 0.3) end,
+  voice_ghast = function() return tone(0.6, 700, 300, "saw", 0.02, 0.25, 0.4) end,
+  voice_pigman = function() return tone(0.5, 180, 120, "square", 0.03, 0.2, 0.35) end,
   voice_enderman = function() return tone(0.5, 600, 200, "sine", 0.01, 0.2, 0.4) end,
 }
 

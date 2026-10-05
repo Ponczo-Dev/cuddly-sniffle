@@ -274,6 +274,9 @@ function S.respawn(game)
   if not x then
     x, y, z = game.worldSpawnX, game.worldSpawnY, game.worldSpawnZ
   end
+  if game.dimension ~= "overworld" then
+    game:changeDimension("overworld", x, y, z)
+  end
   p.x, p.y, p.z = x, y, z
   p.prevX, p.prevY, p.prevZ = x, y, z
   p.vx, p.vy, p.vz = 0, 0, 0

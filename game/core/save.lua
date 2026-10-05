@@ -129,18 +129,19 @@ function M.decodeChunk(cx, cz, data)
   return chunk
 end
 
-local function chunkPath(folder, cx, cz)
-  return "worlds/" .. folder .. "/chunks/" .. cx .. "." .. cz .. ".dat"
+local function chunkPath(folder, cx, cz, dim)
+  local sub = (dim == "nether") and "/nether/chunks/" or "/chunks/"
+  return "worlds/" .. folder .. sub .. cx .. "." .. cz .. ".dat"
 end
 
-function M.saveChunk(folder, chunk)
+function M.saveChunk(folder, chunk, dim)
   local data = M.encodeChunk(chunk)
-  fs.write(chunkPath(folder, chunk.cx, chunk.cz), fs.compress(data))
+  fs.write(chunkPath(folder, chunk.cx, chunk.cz, dim), fs.compress(data))
   chunk.modified = false
 end
 
-function M.loadChunk(folder, cx, cz)
-  local raw = fs.read(chunkPath(folder, cx, cz))
+function M.loadChunk(folder, cx, cz, dim)
+  local raw = fs.read(chunkPath(folder, cx, cz, dim))
   if not raw then return nil end
   local data = fs.decompress(raw)
   if not data then return nil end
@@ -261,6 +262,7 @@ function M.levelData(game)
   local p = game.player
   return {
     version = M.VERSION, name = game.name, seed = game.seed, gameMode = p.gameMode,
+    dimension = game.dimension,
     difficulty = game.difficulty, hardcore = game.hardcore, time = game.time,
     dayTime = game.dayTime, lastPlayed = os.time(), dead = game.dead,
     weather = { raining = game.weather.raining, thunder = game.weather.thunder,
@@ -328,6 +330,7 @@ function M.applyLevel(game, data)
   game.armor:deserialize(data.armor)
   game.stats = data.stats or {}
   game.dead = data.dead or false
+  game.savedDimension = data.dimension
 end
 
 return M

@@ -467,7 +467,7 @@ B.define { id = 86, name = "pumpkin", label = "Dynia", hardness = 1, resistance 
   tool = "axe", texFn = facingTex("pumpkin_face", "pumpkin_side", "pumpkin_top") }
 
 B.define { id = 89, name = "glowstone", label = "Jasnoglaz", tex = "glowstone",
-  hardness = 0.3, resistance = 0.3, light = 15, opaque = true }
+  hardness = 0.3, resistance = 0.3, light = 15, opaque = true, drops = dropItem(348, 2, 4) }
 
 B.define { id = 91, name = "jack_o_lantern", label = "Lampion z dyni", hardness = 1,
   resistance = 1, tool = "axe", light = 15,
@@ -693,6 +693,24 @@ B.define { id = 85, name = "fence", label = "Plotek", tex = "planks", opaque = f
     return x0, y0, z0, x1, 1.5, z1
   end,
   drops = function() return { { id = 85, count = 1, damage = 0 } } end }
+
+-- ---------------------------------------------------------------------------
+-- Nether
+-- ---------------------------------------------------------------------------
+B.define { id = 87, name = "netherrack", label = "Skala Netheru", tex = "netherrack", hardness = 0.4,
+  resistance = 0.4, tool = "pickaxe", tier = 0, eternalFire = true }
+B.define { id = 88, name = "soul_sand", label = "Piasek dusz", tex = "soul_sand", hardness = 0.5,
+  resistance = 0.5, tool = "shovel", opaque = false, opacity = 15, layer = "opaque", shape = "box",
+  bounds = box(0, 0, 0, 1, 14 * P, 1), slowsEntities = true,
+  texFn = (function() local t = tiles.get("soul_sand"); return function() return t end end)() }
+-- Portal: meta 0 = płaszczyzna wzdłuż X, 1 = wzdłuż Z
+B.define { id = 90, name = "portal", label = "Portal", tex = "nether_portal", solid = false,
+  opaque = false, shape = "box", layer = "translucent", light = 11, hardness = -1,
+  resistance = 0, selectable = false, drops = dropNothing,
+  bounds = function(meta)
+    if meta == 1 then return 6 * P, 0, 0, 10 * P, 1, 1 end
+    return 0, 0, 6 * P, 1, 1, 10 * P
+  end }
 
 -- ---------------------------------------------------------------------------
 -- Tory (kształt "rail": płaska płytka, wzniesienia i zakręty)

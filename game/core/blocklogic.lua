@@ -345,6 +345,10 @@ function L.onNeighborChanged(game, x, y, z)
     end
     return
   end
+  if blockId == 90 then
+    require("core.portal").validate(game, x, y, z)
+    return
+  end
   if blockId == FARMLAND then
     if OPAQUE[world:getBlock(x, y + 1, z)] == 1 then world:setBlock(x, y, z, DIRT, 0) end
     return
@@ -510,7 +514,8 @@ function L.randomTick(game, x, y, z, blockId, meta)
           end
         end
       end
-      if not L.nearFlammable(world, x, y, z) or rng:chance(0.3) then
+      local below = defs[world:getBlock(x, y - 1, z)]
+      if not (below and below.eternalFire) and (not L.nearFlammable(world, x, y, z) or rng:chance(0.3)) then
         world:setBlock(x, y, z, AIR, 0)
       end
     end

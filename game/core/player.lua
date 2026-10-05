@@ -177,6 +177,12 @@ function Player:tickWalking(world, forward, strafe)
   local mx, my, mz, wx, wy, wz = physics.move(world, self, self.vx, self.vy, self.vz, self.sneaking)
   self:updateFall(my, wasOnGround)
 
+  -- piasek dusz spowalnia
+  local feet = blocks.defs[world:getBlock(math.floor(self.x), math.floor(self.y + 0.01), math.floor(self.z))]
+  if feet and feet.slowsEntities then
+    self.vx, self.vz = self.vx * 0.4, self.vz * 0.4
+  end
+
   -- uderzenie w przeszkodę zatrzymuje ruch w tej osi
   if mx ~= wx then self.vx = 0 end
   if mz ~= wz then self.vz = 0 end

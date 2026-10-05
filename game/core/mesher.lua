@@ -103,12 +103,13 @@ local STONE = 1
 
 function M.gather(world, cx, cz)
   -- wiersz y = -1: lity blok (żeby nie rysować spodu świata)
+  local topSky = world.noSky and 0 or 15
   for z = -1, SIZE do
     for x = -1, SIZE do
       local i = pidx(x, -1, z)
       pb[i], pm[i], ps[i], pl[i] = STONE, 0, 0, 0
       local j = pidx(x, HEIGHT, z)
-      pb[j], pm[j], ps[j], pl[j] = 0, 0, 15, 0
+      pb[j], pm[j], ps[j], pl[j] = 0, 0, topSky, 0
     end
   end
 

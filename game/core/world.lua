@@ -213,6 +213,7 @@ function World:getBlockAndMeta(x, y, z)
 end
 
 function World:getSkyLight(x, y, z)
+  if self.noSky then return 0 end
   if y >= HEIGHT then return 15 end
   if y < 0 then return 0 end
   local c = self.chunks[key(floor(x / SIZE), floor(z / SIZE))]

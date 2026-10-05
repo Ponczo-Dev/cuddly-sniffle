@@ -427,6 +427,8 @@ function M.generate(def, damage)
       M = { 200, 110, 85 }, d = { 120, 55, 40 } })
   end
   if key == "redstone" then return colorDust({ 200, 15, 15 }) end
+  if key == "glowstone_dust" then return colorDust({ 250, 220, 110 }) end
+  if key == "ghast_tear" then return colorBlob({ 200, 235, 245 }) end
   if key == "sugar" then return colorDust({ 245, 245, 245 }) end
   if simple then
     pal = simple.pal

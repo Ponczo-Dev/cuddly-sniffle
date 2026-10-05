@@ -141,6 +141,8 @@ I.define { id = 340, name = "book", label = "Ksiazka", icon = "book" }
 I.define { id = 341, name = "slimeball", label = "Kulka szlamu", icon = "slimeball" }
 I.define { id = 344, name = "egg", label = "Jajko", icon = "egg", stack = 16, use = "throw" }
 I.define { id = 352, name = "bone", label = "Kosc", icon = "bone" }
+I.define { id = 348, name = "glowstone_dust", label = "Pyl jasnoglazu", icon = "glowstone_dust" }
+I.define { id = 370, name = "ghast_tear", label = "Lza ghasta", icon = "ghast_tear" }
 I.define { id = 353, name = "sugar", label = "Cukier", icon = "sugar" }
 -- Barwnik: damage 15 = mączka kostna, 4 = lapis lazuli
 I.define { id = 351, name = "dye", label = "Barwnik", icon = "dye",

@@ -484,6 +484,13 @@ function Play:handleEvents()
       self.swing = 1
     elseif kind == "wake" then
       hud.message("Dzien dobry!", { 1, 1, 0.6 })
+    elseif kind == "dimension" then
+      self.renderer:clear()
+      self.renderer = ChunkRenderer.new(game.world, atlas.image)
+      particles.clear()
+      sound.setRain(0)
+      hud.message(ev[2] == "nether" and "Wszedles do Netheru" or "Wrociles do zwyklego swiata",
+        { 1, 0.6, 0.6 })
     end
   end
 end
@@ -582,7 +589,9 @@ function Play:entityLight(x, y, z)
   local sl = game.world:getSkyLight(bx, by, bz)
   local bl = game.world:getBlockLight(bx, by, bz)
   local l = math.max(sl * game:daylight(), bl) / 15
-  return brightness(l)
+  local b = brightness(l)
+  if game.dimension == "nether" and b < 0.32 then b = 0.32 end
+  return b
 end
 
 -- Nakładka pękania bloku
@@ -655,6 +664,12 @@ function Play:drawEntities(alpha)
             local pulse = 0.8 + math.sin((e.age + alpha) * 0.4) * 0.2
             models.baseMatrix(tmpM, x, y + 0.15, z, (e.age + alpha) * 0.1, pulse)
             models.drawMesh(models.xp, tmpM)
+          elseif e.type == "fireball" then
+            s:send("u_light", 1)
+            g.setColor(1, 0.55, 0.15, 1)
+            models.baseMatrix(tmpM, x, y, z, (e.age + alpha) * 0.3, 3)
+            models.drawMesh(models.ball, tmpM)
+            g.setColor(1, 1, 1, 1)
           elseif e.type == "snowball" or e.type == "egg" or e.type == "pearl" then
             s:send("u_light", light)
             local c = e.type == "egg" and { 0.95, 0.9, 0.75 } or (e.type == "pearl" and { 0.1, 0.4, 0.35 } or { 1, 1, 1 })
@@ -793,6 +808,14 @@ function Play:draw(alpha)
   if game.weather.strength > 0 then
     fogEnd = fogEnd * (1 - game.weather.strength * 0.25)
   end
+  local nether = game.dimension == "nether"
+  if nether then
+    skyColor = { 0.22, 0.03, 0.02 }
+    fogColor = skyColor
+    fogEnd = math.min(fogEnd, 80)
+    fogStart = fogEnd * 0.2
+  end
+  shader.chunk:send("u_ambient", nether and 0.32 or 0)
   local underwater = physics.pointInLiquid(game.world, cam.x, cam.y, cam.z, "water")
   local inLava = physics.pointInLiquid(game.world, cam.x, cam.y, cam.z, "lava")
   if underwater then
@@ -810,7 +833,7 @@ function Play:draw(alpha)
 
   g.clear(skyColor[1], skyColor[2], skyColor[3], 1)
   shader.setCamera(cam.proj, cam.view, fogColor, fogStart, fogEnd)
-  if not underwater and not inLava and cam.y > 30 then sky.drawCelestial(game, cam, alpha) end
+  if not underwater and not inLava and cam.y > 30 and not nether then sky.drawCelestial(game, cam, alpha) end
   shader.setCamera(cam.proj, cam.view, fogColor, fogStart, fogEnd)
 
   local daylight = game:daylight()
@@ -822,8 +845,8 @@ function Play:draw(alpha)
   shader.entity:send("u_fogStart", fogStart)
   shader.entity:send("u_fogEnd", fogEnd)
   particles.draw(cam, alpha, function(x, y, z) return self:entityLight(x, y, z) end)
-  self.rainNear = weather.draw(game, cam, alpha, brightness(daylight))
-  if options.values.clouds and not underwater then
+  self.rainNear = nether and 0 or weather.draw(game, cam, alpha, brightness(daylight))
+  if options.values.clouds and not underwater and not nether then
     sky.drawClouds(game, cam, alpha, fogColor, fogEnd)
   end
   self:drawHand(alpha)
@@ -845,6 +868,11 @@ function Play:draw(alpha)
   if game.fireTicks > 0 and p.gameMode ~= "creative" and not self.screen then
     g.setColor(1, 0.5, 0.1, 0.15 + math.sin(love.timer.getTime() * 20) * 0.05)
     g.rectangle("fill", 0, h * 0.6, w, h * 0.4)
+  end
+  if (game.portalTimer or 0) > 0 then
+    local f = math.min(1, game.portalTimer / 80)
+    g.setColor(0.5, 0.1, 0.9, f * 0.65)
+    g.rectangle("fill", 0, 0, w, h)
   end
   if self.hurtFlash > 0 then
     g.setColor(0.8, 0, 0, self.hurtFlash / 10 * 0.3)
