@@ -13,13 +13,19 @@ local clock
 local states
 local showFps = true
 
-function love.load()
+function love.load(args)
   -- Piksele bez rozmywania (tekstury 16x16 jak w Minecrafcie)
   love.graphics.setDefaultFilter("nearest", "nearest")
 
   clock = Clock.new(config.TICKS_PER_SECOND, config.MAX_TICKS_PER_FRAME)
   states = StateManager.new()
-  states:switch(require("states.boot"))
+
+  -- Parametr "--play" pomija menu (przydatne przy testowaniu)
+  local first = "states.boot"
+  for _, a in ipairs(args or {}) do
+    if a == "--play" then first = "states.play" end
+  end
+  states:switch(require(first))
 end
 
 function love.update(dt)

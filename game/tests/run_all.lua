@@ -19,6 +19,7 @@ local files = {
   "test_clock",
   "test_strict",
   "test_states",
+  "test_world",
 }
 
 local jit = rawget(_G, "jit")
