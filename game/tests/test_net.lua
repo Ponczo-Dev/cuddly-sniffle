@@ -102,6 +102,29 @@ suite:test("bloki: gosc stawia i niszczy, gospodarz widzi; i odwrotnie", functio
   T.eq(g.world:getBlock(6, 64, 6), 0, "zniknal u goscia")
 end)
 
+suite:test("bloki: lozko i drzwi goscia nie niszcza sie u gospodarza", function()
+  local host, srv, cl = setup()
+  run(host, srv, cl, 40)
+  local g = cl.game
+  local p = g.player
+  p.x, p.y, p.z, p.yaw, p.pitch = 8.5, 64, 4.5, 0, 0.6
+  cl.recording = true
+  g.inventory.slots[g.selected] = { id = 355, count = 1, damage = 0 }
+  T.truthy(g:placeFromHand({ x = 8, y = 63, z = 7, nx = 0, ny = 1, nz = 0, id = 2 }), "lozko postawione")
+  g.inventory.slots[g.selected] = { id = 324, count = 1, damage = 0 }
+  T.truthy(g:placeFromHand({ x = 5, y = 63, z = 7, nx = 0, ny = 1, nz = 0, id = 2 }), "drzwi postawione")
+  cl.recording = false
+  run(host, srv, cl, 5)
+  local bed = 0
+  for z = 5, 9 do if host.world:getBlock(8, 64, z) == 26 then bed = bed + 1 end end
+  T.eq(bed, 2, "obie polowki lozka u gospodarza")
+  T.eq(host.world:getBlock(5, 64, 7), 64, "dol drzwi u gospodarza")
+  T.eq(host.world:getBlock(5, 65, 7), 64, "gora drzwi u gospodarza")
+  bed = 0
+  for z = 5, 9 do if g.world:getBlock(8, 64, z) == 26 then bed = bed + 1 end end
+  T.eq(bed, 2, "lozko zostalo u goscia")
+end)
+
 suite:test("przedmioty: gosc wyrzuca, gospodarz tworzy, gosc podnosi", function()
   local host, srv, cl = setup()
   run(host, srv, cl, 40)

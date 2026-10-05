@@ -223,6 +223,9 @@ function Server:applyBlocks(ctx, list)
   local redstone = require("core.redstone")
   game.suppressDrops = true
   local ok, err = pcall(function()
+    -- najpierw wszystkie bloki, potem sąsiedzi: łóżko i drzwi przychodzą
+    -- jako dwie połówki i pierwsza nie może się zniszczyć przed drugą
+    local changed = {}
     for i = 1, #list - 4, 5 do
       local x, y, z, id, meta = list[i], list[i + 1], list[i + 2], list[i + 3], list[i + 4]
       local def = blocks.defs[id]
@@ -237,12 +240,13 @@ function Server:applyBlocks(ctx, list)
             if def and def.liquid then game:scheduleTick(x, y, z, 5) end
             if def and def.gravity then game:scheduleTick(x, y, z, 2) end
           end
-          game:notifyNeighbors(x, y, z)
-          if (def and def.redstone) or (oldDef and oldDef.redstone) then
-            redstone.notifyAround(game, x, y, z)
-          end
+          changed[#changed + 1] = { x, y, z, (def and def.redstone) or (oldDef and oldDef.redstone) }
         end
       end
+    end
+    for _, c in ipairs(changed) do
+      game:notifyNeighbors(c[1], c[2], c[3])
+      if c[4] then redstone.notifyAround(game, c[1], c[2], c[3]) end
     end
   end)
   game.suppressDrops = false
