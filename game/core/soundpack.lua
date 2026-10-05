@@ -1,6 +1,7 @@
 -- core/soundpack.lua
 -- Szukanie oryginalnych dźwięków Minecrafta na komputerze gracza.
--- Projekt NIE zawiera dźwięków Mojang: gra czyta je z Twojej instalacji
+-- Projekt NIE zawiera dźwięków Mojang (bez Minecrafta gra używa wbudowanych
+-- darmowych dźwięków z folderu "freesounds"): gra czyta je z Twojej instalacji
 -- Minecrafta (folder .minecraft/assets: indeks JSON + pliki .ogg nazwane
 -- skrótem SHA1) albo z folderu "sounds" (np. rozpakowana paczka zasobów).
 --
@@ -112,7 +113,7 @@ end
 M.EVENTS = {
   pop = { "random/pop" }, click = { "random/click" }, hurt = { "damage/hit", "entity/player/hurt" },
   explosion = { "random/explode" }, fuse = { "random/fuse" }, fizz = { "random/fizz" },
-  bow = { "random/bow" }, arrow_hit = { "random/bowhit" }, throw = { "random/bow" },
+  bow = { "random/bow" }, arrow_hit = { "random/bowhit" }, throw = { "random/throw", "random/bow" },
   eat = { "random/eat" }, burp = { "random/burp" }, orb = { "random/orb" },
   levelup = { "random/levelup" }, door = { "random/door_open", "block/wooden_door/open" },
   chest_open = { "random/chestopen", "block/chest/open" },
@@ -134,20 +135,24 @@ M.EVENTS = {
 M.MOBS = {
   pig = { say = { "mob/pig/say" }, hurt = { "mob/pig/say" }, death = { "mob/pig/death" } },
   cow = { say = { "mob/cow/say" }, hurt = { "mob/cow/hurt" }, death = { "mob/cow/hurt" } },
-  sheep = { say = { "mob/sheep/say" }, hurt = { "mob/sheep/say" }, death = { "mob/sheep/say" } },
+  sheep = { say = { "mob/sheep/say" }, hurt = { "mob/sheep/hurt", "mob/sheep/say" },
+    death = { "mob/sheep/hurt", "mob/sheep/say" } },
   chicken = { say = { "mob/chicken/say" }, hurt = { "mob/chicken/hurt" }, death = { "mob/chicken/hurt" } },
   wolf = { say = { "mob/wolf/bark" }, hurt = { "mob/wolf/hurt" }, death = { "mob/wolf/death" } },
   zombie = { say = { "mob/zombie/say" }, hurt = { "mob/zombie/hurt" }, death = { "mob/zombie/death" } },
   skeleton = { say = { "mob/skeleton/say" }, hurt = { "mob/skeleton/hurt" }, death = { "mob/skeleton/death" } },
-  spider = { say = { "mob/spider/say" }, hurt = { "mob/spider/say" }, death = { "mob/spider/death" } },
+  spider = { say = { "mob/spider/say" }, hurt = { "mob/spider/hurt", "mob/spider/say" },
+    death = { "mob/spider/death" } },
   creeper = { say = { "mob/creeper/say" }, hurt = { "mob/creeper/say" }, death = { "mob/creeper/death" } },
-  ghast = { say = { "mob/ghast/moan" }, hurt = { "mob/ghast/scream" }, death = { "mob/ghast/death" },
+  ghast = { say = { "mob/ghast/moan" }, hurt = { "mob/ghast/scream", "mob/ghast/moan" },
+    death = { "mob/ghast/death", "mob/ghast/moan" },
     shoot = { "mob/ghast/fireball" }, charge = { "mob/ghast/charge" } },
   pigman = { say = { "mob/zombiepig/zpig" }, hurt = { "mob/zombiepig/zpighurt" },
     death = { "mob/zombiepig/zpigdeath" } },
   enderman = { say = { "mob/endermen/idle" }, hurt = { "mob/endermen/hit" }, death = { "mob/endermen/death" } },
   blaze = { say = { "mob/blaze/breathe" }, hurt = { "mob/blaze/hit" }, death = { "mob/blaze/death" } },
-  dragon = { say = { "mob/enderdragon/growl" }, hurt = { "mob/enderdragon/hit" }, death = { "mob/enderdragon/end" } },
+  dragon = { say = { "mob/enderdragon/growl" }, hurt = { "mob/enderdragon/hit" },
+    death = { "mob/enderdragon/end", "mob/enderdragon/growl" } },
 }
 
 -- Kopanie (dig) i kroki (step) zależne od materiału bloku

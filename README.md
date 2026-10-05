@@ -3,7 +3,7 @@
 Klon Minecrafta w stylu Java Edition Beta 1.0–1.8, napisany w Lua na frameworku
 [LÖVE 11.5](https://love2d.org). Działa na Windows 10 **bez uprawnień administratora**.
 Wszystkie tekstury i modele są generowane w kodzie, więc nie potrzeba żadnych plików graficznych.
-Dźwięki i muzykę gra bierze z Twojego zainstalowanego Minecrafta (patrz „Dźwięki i muzyka”).
+Dźwięki i muzykę gra bierze z Twojego zainstalowanego Minecrafta, a bez niego używa wbudowanych darmowych dźwięków (patrz „Dźwięki i muzyka”).
 Plan projektu i zasady pracy z AI są w [`MASTER_PROMPT.md`](MASTER_PROMPT.md).
 
 **Stan: fazy 0–10 z planu ukończone + rozszerzenia: redstone i tłoki, tory i wagoniki, łódki, płotki, Nether z portalem, opuszczone kopalnie i wioski, gra wieloosobowa w sieci LAN, zaklinanie, mikstury, mapy, twierdze i End ze smokiem.**
@@ -107,6 +107,7 @@ przeciąganie ze stosem (rozłożenie po slotach), Q nad slotem (wyrzuć), 1–9
   (szarżuje, niszczy bloki, ma 200 punktów życia). Po zwycięstwie pojawia się portal powrotny i jajo smoka.
 - **Dźwięki i muzyka:** oryginalne dźwięki Minecrafta (kopanie i kroki zależne od materiału, głosy mobów,
   wybuchy, deszcz, skrzynie) i muzyka C418 w menu, w świecie, w Netherze i w Endzie, z Twojej instalacji gry.
+  Bez Minecrafta: wbudowane darmowe dźwięki i muzyka z VoxeLibre.
 
 ## Dźwięki i muzyka
 
@@ -114,7 +115,13 @@ Projekt **nie zawiera** dźwięków Minecrafta (należą do Mojang). Gra sama zn
 wystarczy, że na tym komputerze był choć raz uruchomiony Minecraft z oficjalnego launchera
 (folder `%APPDATA%\.minecraft`, na Linuksie `~/.minecraft`). W menu głównym na dole widać, czy dźwięki się znalazły.
 
-Bez Minecrafta gra jest cicha. Możesz też wrzucić własne pliki `.ogg` do folderu `sounds` w folderze zapisu
+**Bez Minecrafta** (np. na Linuksie u kolegi, który nie kupił gry) gra używa wbudowanych darmowych
+dźwięków i muzyki z gry [VoxeLibre](https://github.com/VoxeLibre/VoxeLibre) (folder `game/freesounds`,
+licencje CC0 / CC BY / CC BY-SA, autorzy w `game/freesounds/CREDITS.md`). Nie trzeba nic instalować.
+W menu na dole widać wtedy „Dzwieki: darmowe (VoxeLibre)”. Gdy Minecraft jest zainstalowany,
+gra bierze oryginalne dźwięki zamiast darmowych.
+
+Możesz też wrzucić własne pliki `.ogg` do folderu `sounds` w folderze zapisu
 (`%APPDATA%\LOVE\minecraft-lua\sounds\`) albo w `game\sounds\`, z takimi ścieżkami jak w Minecrafcie, np.
 `sounds\dig\grass1.ogg`, `sounds\mob\zombie\say1.ogg`, `sounds\music\game\calm1.ogg`
 (tak wygląda folder `assets/minecraft/sounds` w paczce zasobów). Takie pliki mają pierwszeństwo.

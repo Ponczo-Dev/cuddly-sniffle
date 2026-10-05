@@ -45,4 +45,36 @@ suite:test("odczyt z folderu .minecraft (sztuczny)", function()
   T.eq(soundpack.scanMinecraft(function() return nil end, getenv), nil, "brak Minecrafta")
 end)
 
+
+-- Wbudowana darmowa paczka: lista plików z freesounds/FILES.md
+suite:test("darmowe dzwieki: kazde zdarzenie, mob i muzyka maja plik", function()
+  local f = io.open("freesounds/FILES.md", "rb")
+  T.truthy(f, "freesounds/FILES.md")
+  local list = {}
+  for rel in f:read("*a"):gmatch("%- `([^`]+%.ogg)`") do
+    list[#list + 1] = { rel = rel }
+    local g = io.open("freesounds/" .. rel, "rb")
+    T.truthy(g, "plik " .. rel)
+    g:close()
+  end
+  f:close()
+  local lib = soundpack.library(list)
+  -- zdarzenia bez darmowego odpowiednika (gra po prostu milczy)
+  local missing = { burp = true, enderman_stare = true, dragon_wings = true, lava = true, water = true }
+  for name, cands in pairs(soundpack.EVENTS) do
+    if not missing[name] then T.truthy(soundpack.pick(lib, cands), "zdarzenie " .. name) end
+  end
+  for kind, m in pairs(soundpack.MOBS) do
+    for _, what in ipairs({ "say", "hurt", "death" }) do
+      T.truthy(soundpack.pick(lib, m[what]), kind .. " " .. what)
+    end
+  end
+  for _, mat in ipairs({ "stone", "wood", "grass", "gravel", "sand", "snow", "cloth" }) do
+    T.truthy(lib["dig/" .. mat] and lib["step/" .. mat] and lib["hit/" .. mat], "material " .. mat)
+  end
+  for _, ctx in ipairs({ "menu", "game", "creative", "nether", "end" }) do
+    T.truthy(#soundpack.musicTracks(lib, ctx) > 0, "muzyka " .. ctx)
+  end
+end)
+
 return suite

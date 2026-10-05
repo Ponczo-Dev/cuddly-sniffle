@@ -1,7 +1,9 @@
 -- render/sound.lua
 -- Dźwięki i muzyka z ORYGINALNEGO Minecrafta zainstalowanego na komputerze
--- gracza (folder .minecraft) albo z folderu "sounds" (np. paczka zasobów).
--- Projekt nie zawiera plików Mojang: gdy ich nie ma, gra jest po prostu cicha.
+-- gracza (folder .minecraft), a bez niego z wbudowanej darmowej paczki
+-- (folder "freesounds", dźwięki i muzyka z VoxeLibre na wolnych licencjach).
+-- Folder "sounds" (np. paczka zasobów) zastępuje jedno i drugie.
+-- Projekt nie zawiera plików Mojang.
 -- Dźwięk przestrzenny (głośność i panorama) przez audio pozycyjne LÖVE.
 
 local blocks = require("core.blocks")
@@ -67,6 +69,14 @@ function M.load()
     soundpack.library(list, lib)
     M.info.source = "Minecraft"
     M.info.count = #list
+  else
+    -- bez Minecrafta: wbudowane darmowe dźwięki (VoxeLibre, CC BY-SA / CC0)
+    local free = scanFolder("freesounds", "", {})
+    if #free > 0 then
+      soundpack.library(free, lib)
+      M.info.source = "darmowe (VoxeLibre)"
+      M.info.count = #free
+    end
   end
   -- własne pliki zastępują te z Minecrafta (całe grupy)
   local own = scanFolder("sounds", "", {})
@@ -171,13 +181,16 @@ function M.play(name, x, y, z, vol, pitch)
   playList(soundpack.pick(lib, cands), x, y, z, vol, pitch)
 end
 
--- Kopanie/stawianie (głośno: dig/) albo kroki i uderzenia (cicho: step/)
+-- Kopanie/stawianie (głośno: dig/), uderzenia podczas kopania (hit/, a gdy
+-- ich nie ma - step/ jak w Minecrafcie) albo kroki (cicho: step/)
 function M.dig(id, x, y, z, vol)
   vol = vol or 1
   local mat = M.material(id)
+  local step = soundpack.STEP[mat] or { "step/" .. mat }
   local cands
   if vol >= 0.5 then cands = soundpack.DIG[mat] or { "dig/" .. mat }
-  else cands = soundpack.STEP[mat] or { "step/" .. mat } end
+  elseif vol >= 0.3 then cands = { "hit/" .. mat, step[1] }
+  else cands = step end
   playList(soundpack.pick(lib, cands), x, y, z, vol)
 end
 
