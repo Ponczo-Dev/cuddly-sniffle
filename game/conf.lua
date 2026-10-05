@@ -20,4 +20,22 @@ function love.conf(t)
   t.modules.joystick = false
   t.modules.physics = false
   t.modules.video = false
+
+  -- Serwer dedykowany (--server): bez okna, grafiki i dźwięku,
+  -- więc działa na serwerze bez monitora (np. Linux przez SSH)
+  local args = rawget(_G, "arg") or {}
+  for _, a in pairs(args) do
+    if a == "--server" then
+      t.window = false
+      t.modules.window = false
+      t.modules.graphics = false
+      t.modules.audio = false
+      t.modules.sound = false
+      t.modules.font = false
+      t.modules.image = false
+      t.modules.keyboard = false
+      t.modules.mouse = false
+      t.modules.touch = false
+    end
+  end
 end

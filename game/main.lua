@@ -16,7 +16,7 @@ local states
 
 function love.load(args)
   -- Piksele bez rozmywania (tekstury 16x16 jak w Minecrafcie)
-  love.graphics.setDefaultFilter("nearest", "nearest")
+  if love.graphics then love.graphics.setDefaultFilter("nearest", "nearest") end
   math.randomseed(os.time())
   options.load(fs)
   -- zbieranie śmieci małymi krokami (bez długich przycięć)
@@ -44,6 +44,13 @@ function love.load(args)
     elseif a:match("^%-%-join=") then join = a:match("=(.+)$")
     elseif a:match("^%-%-name=") then name = a:match("=(.+)$")
     elseif a:match("^%-%-seed=") then seed = tonumber(a:match("=(%-?%d+)")) or seed end
+  end
+  -- serwer dedykowany: --server [--world=Nazwa] [--port=25565] [--seed=N] ...
+  local server = false
+  for _, a in ipairs(args or {}) do if a == "--server" then server = true end end
+  if server then
+    states:switch(require("states.server"), { manager = states, args = args })
+    return
   end
   if join then
     states:switch(require("states.connect"), { manager = states, address = join,

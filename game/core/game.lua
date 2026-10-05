@@ -1117,7 +1117,8 @@ function Game:tick()
   for _, e in ipairs(self.entities.list) do
     if e.onGround and not e.dead and (e.isMob or e.type == "item") then redstone.checkPlate(self, e) end
   end
-  if self.mobs then self.mobs.tick(self) end
+  -- na serwerze dedykowanym moby pojawiają się tylko wokół graczy (robi to serwer)
+  if self.mobs and not self.dedicated then self.mobs.tick(self) end
   if self.dimension == "end" then require("core.dragon").tick(self) end
   self:processScheduled()
   self:randomTicks()

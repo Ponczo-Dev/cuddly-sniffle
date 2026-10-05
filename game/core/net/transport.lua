@@ -50,8 +50,19 @@ function M.enetServer(port, maxPeers)
     if p then p:disconnect_later() end
   end
   function t:close()
-    for _, p in pairs(peers) do p:disconnect_now() end
-    host:flush()
+    -- łagodne rozłączenie: najpierw dochodzą wysłane pakiety (np. "kick")
+    local any = false
+    for _, p in pairs(peers) do p:disconnect_later(); any = true end
+    for _ = 1, any and 50 or 0 do
+      local ok, ev = pcall(host.service, host, 10)
+      if not ok then break end
+      if ev and ev.type == "disconnect" then
+        peers[ev.peer:index()] = nil
+        if not next(peers) then break end
+      end
+    end
+    for _, p in pairs(peers) do pcall(p.disconnect_now, p) end
+    pcall(host.flush, host)
     peers, ids = {}, {}
     pcall(host.destroy, host)
   end
@@ -78,6 +89,12 @@ function M.enetClient(address, port)
   end
   function t:send(data) peer:send(data, 0, "reliable") end
   function t:close()
+    -- łagodne rozłączenie: pożegnanie (z zapisem gracza) musi dojść do serwera
+    pcall(peer.disconnect_later, peer)
+    for _ = 1, 50 do
+      local ok, ev = pcall(host.service, host, 10)
+      if not ok or (ev and ev.type == "disconnect") then break end
+    end
     pcall(peer.disconnect_now, peer)
     pcall(host.flush, host)
     pcall(host.destroy, host)

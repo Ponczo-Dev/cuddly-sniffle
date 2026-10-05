@@ -81,8 +81,8 @@ function Play:enter(params)
   sound.setVolume(options.values.volume)
   if game.dead then self:openScreen(menus.death(game, function(a) self:deathAction(a) end)) end
   if game.netClient then
-    hud.message("Polaczono z gra gracza " .. (game.netClient.hostName or "?") .. ". /list - lista graczy",
-      { 1, 1, 0.5 })
+    local who = game.netClient.dedicated and "z serwerem" or ("z gra gracza " .. (game.netClient.hostName or "?"))
+    hud.message("Polaczono " .. who .. ". /list - lista graczy", { 1, 1, 0.5 })
   else
     hud.message("Witaj w swiecie '" .. game.name .. "'! Wpisz /help w czacie (T)", { 1, 1, 0.5 })
   end
@@ -127,7 +127,8 @@ function Play:openPause()
     info = "Siec LAN: " .. (self.lanAddress or "?") .. ":" .. srv.port .. "\nGraczy: " .. (srv:count() + 1)
   elseif game.netClient then
     kind = "client"
-    info = "Polaczono z gra gracza " .. (game.netClient.hostName or "?")
+    info = game.netClient.dedicated and "Polaczono z serwerem"
+      or ("Polaczono z gra gracza " .. (game.netClient.hostName or "?"))
   end
   self:openScreen(menus.pause(function(action)
     if action == "resume" then

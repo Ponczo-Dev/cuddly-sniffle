@@ -39,6 +39,10 @@ function M.start(game, transport, opts)
   self.transport = transport
   self.port = opts.port or protocol.PORT
   self.hostName = protocol.cleanName(opts.name or "Gospodarz")
+  -- serwer dedykowany: gospodarz nie gra (nie ma postaci, moby go nie widzą)
+  self.dedicated = opts.dedicated or false
+  self.maxPlayers = opts.maxPlayers or protocol.MAX_PLAYERS
+  self.log = opts.log
   self.peers = {}          -- id -> kontekst gracza
   self.pendingBlocks = {}  -- zmiany bloków do rozesłania w tym ticku
   self.ticks = 0
@@ -75,7 +79,8 @@ function Server:count()
 end
 
 function Server:playerNames()
-  local list = { self.hostName }
+  local list = {}
+  if not self.dedicated then list[1] = self.hostName end
   for _, ctx in pairs(self.peers) do
     if ctx.state == "play" then list[#list + 1] = ctx.name end
   end
@@ -115,7 +120,7 @@ end
 function Server:nearestRemote(e)
   local g = self.game
   local best, bestD = nil, math.huge
-  if not g.dead and g.dimension == "overworld" then
+  if not self.dedicated and not g.dead and g.dimension == "overworld" then
     local p = g.player
     bestD = (p.x - e.x) ^ 2 + (p.y - e.y) ^ 2 + (p.z - e.z) ^ 2
   end
@@ -250,7 +255,7 @@ end
 local function uniqueName(self, name)
   local base, n = name, 1
   local function taken(nm)
-    if nm == self.hostName then return true end
+    if nm == self.hostName and not self.dedicated then return true end
     for _, c in pairs(self.peers) do if c.name == nm and c.state == "play" then return true end end
     return false
   end
@@ -277,7 +282,7 @@ function Server:handleHello(ctx, msg)
     self.transport:kick(ctx.id)
     return
   end
-  if self:count() >= protocol.MAX_PLAYERS then
+  if self:count() >= self.maxPlayers then
     self:send(ctx, { t = "kick", reason = "Serwer jest pelny" })
     self.transport:kick(ctx.id)
     return
@@ -296,7 +301,7 @@ function Server:handleHello(ctx, msg)
   end
   ctx.pdata = pdata
   local p = Player.new(sx, sy, sz)
-  p.gameMode = game.player.gameMode
+  p.gameMode = game.defaultGameMode or game.player.gameMode
   ctx.player = p
   ctx.cx, ctx.cz = floor(sx / 16), floor(sz / 16)
   ctx.sent = {}
@@ -311,12 +316,27 @@ function Server:handleHello(ctx, msg)
   local w = game.weather
   self:send(ctx, {
     t = "welcome", id = ctx.id, name = ctx.name, world = game.name, seed = game.seed,
-    gm = game.player.gameMode, diff = game.difficulty, day = game.dayTime, time = game.time,
+    gm = game.defaultGameMode or game.player.gameMode, diff = game.difficulty, day = game.dayTime,
+    time = game.time, dedicated = self.dedicated or nil,
     spawn = { game.worldSpawnX, game.worldSpawnY, game.worldSpawnZ },
     pos = { sx, sy, sz }, r = w.raining, th = w.thunder, ws = w.strength,
     pdata = pdata, host = self.hostName,
   })
   self:announce(ctx.name .. " dolaczyl do gry")
+end
+
+-- Wyrzucenie gracza po nicku (konsola serwera)
+function Server:kickName(name, reason)
+  for id, ctx in pairs(self.peers) do
+    if ctx.state == "play" and ctx.name:lower() == tostring(name):lower() then
+      self:send(ctx, { t = "kick", reason = reason or "Wyrzucony przez serwer" })
+      if self.transport.flush then self.transport:flush() end
+      self:removePeer(id, "wyrzucony")
+      self.transport:kick(id)
+      return true
+    end
+  end
+  return false
 end
 
 function Server:removePeer(id, reason)
@@ -571,7 +591,7 @@ local function sendEntities(self, ctx)
     end
   end
   -- gospodarz jako postać
-  if game.dimension == "overworld" then
+  if game.dimension == "overworld" and not self.dedicated then
     local hp = game.player
     list[#list + 1] = { -1, "player", q(hp.x), q(hp.y), q(hp.z), q(hp.yaw),
       { n = self.hostName, hp = q(-hp.pitch * 0.5), sn = hp.sneaking or nil,

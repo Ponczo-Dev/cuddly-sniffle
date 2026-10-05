@@ -292,6 +292,7 @@ function Client:startGame(w)
   game.world:addListener(self)
   self.game = game
   self.hostName = w.host
+  self.dedicated = w.dedicated or false
   self.playerName = w.name
   self.state = "play"
 end

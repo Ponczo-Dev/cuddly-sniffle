@@ -128,6 +128,60 @@ Bez uprawnień administratora zapora może blokować połączenia **przychodząc
 będzie komputer, na którym da się na to zezwolić, bo dołączanie (połączenie wychodzące) zwykle działa bez admina.
 Gra w dwóch oknach na jednym komputerze (`localhost`) działa zawsze.
 
+## Własny serwer (dedykowany, publiczne IP)
+
+Na serwerze gra działa **bez okna**: sama pilnuje świata, a gracze łączą się z menu
+„Gra wieloosobowa” i wpisują adres serwera (np. `203.0.113.7` albo `203.0.113.7:25565`).
+Serwer działa 24 h na dobę, niezależnie od tego, kto akurat gra.
+
+**Linux (np. VPS z Ubuntu), krok po kroku:**
+
+1. Zainstaluj LÖVE 11.x: `sudo apt install love` (Ubuntu 24.04 ma 11.5).
+   Bez apt pobierz `love-11.5-x86_64.AppImage` ze strony love2d.org do folderu `love/` projektu i rozpakuj:
+   `cd love && chmod +x love-11.5-x86_64.AppImage && ./love-11.5-x86_64.AppImage --appimage-extract`.
+2. Skopiuj projekt na serwer (np. `git clone` albo `scp -r`).
+3. **Otwórz port UDP 25565** (enet używa UDP, nie TCP):
+   `sudo ufw allow 25565/udp`, a u dostawcy serwera (panel chmury, „security group”/firewall) dodaj regułę
+   „przychodzące UDP 25565”.
+4. Uruchom: `./server.sh --world=serwer` (pierwsze uruchomienie tworzy świat, kolejne go wczytują).
+
+Opcje: `--world=Nazwa` `--port=25565` `--seed=12345` `--mode=survival|creative` `--difficulty=0-3` `--max=8`.
+
+Komendy w terminalu serwera: `help`, `list`, `say <tekst>`, `kick <nick>`, `save`, `stop`,
+`time set day|night`, `weather clear|rain|thunder`, `difficulty 0-3`, `seed`.
+Świat zapisuje się co minutę i przy wyłączeniu (`stop`, Ctrl+C albo `systemctl stop`).
+Ekwipunki graczy są zapisywane w świecie serwera.
+
+**Praca w tle:** najprościej `tmux new -s mc`, w nim `./server.sh --world=serwer`, odłączenie Ctrl+B, potem D
+(powrót: `tmux attach -t mc`). Albo jako usługa systemd, `/etc/systemd/system/minecraft-lua.service`:
+
+```ini
+[Unit]
+Description=Minecraft Lua - serwer
+After=network.target
+
+[Service]
+User=minecraft
+WorkingDirectory=/home/minecraft/cuddly-sniffle
+ExecStart=/home/minecraft/cuddly-sniffle/server.sh --world=serwer --port=25565
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Potem `sudo systemctl enable --now minecraft-lua`, a logi: `journalctl -u minecraft-lua -f`.
+
+**Windows (serwer z Windows Server):** rozpakuj LÖVE do `love\` i uruchom `server.bat --world=serwer`.
+Komendy wpisuje się w oknie konsoli (`lovec.exe`). W zaporze Windows zezwól na przychodzące UDP 25565.
+
+**Gdzie jest świat serwera:** `~/.local/share/love/minecraft-lua/worlds/<nazwa>` (Linux) albo
+`%APPDATA%\LOVE\minecraft-lua\worlds\<nazwa>` (Windows). Żeby przenieść swój świat z komputera na serwer,
+skopiuj jego folder do `worlds/` na serwerze i uruchom z `--world=<nazwa folderu>`.
+
+Uwaga: serwer nie ma haseł ani białej listy, więc dołączyć może każdy, kto zna adres. Niechcianego gościa
+wyrzucisz komendą `kick <nick>`.
+
 ## Komendy czatu
 
 `/help`, `/time set day|night|<liczba>`, `/gamemode survival|creative`, `/give <nazwa|id> [ilość]`,
@@ -150,6 +204,7 @@ W `run.bat` można dopisać parametry po `"%~dp0game"`:
 | `--lan` | z `--play`/`--creative`: od razu otwiera świat w sieci LAN |
 | `--join=adres` | od razu dołącza do gry w sieci (np. `--join=localhost`) |
 | `--name=Nick` | nick w grze wieloosobowej |
+| `--server` | serwer dedykowany bez okna (patrz „Własny serwer”) |
 
 ## Typowe problemy
 
@@ -189,7 +244,7 @@ game\
     models.lua icons.lua itemart.lua sky.lua particles.lua weather.lua
     hud.lua gui.lua sound.lua
   ui\                    okna: ekwipunek, kreatywny, pauza, opcje, śmierć, czat
-  states\                menu, ładowanie, łączenie z serwerem, gra (+ ekran testowy Fazy 0)
+  states\                menu, ładowanie, łączenie z serwerem, gra, serwer dedykowany
   tests\                 testy logiki (test.bat)
 ```
 
