@@ -19,6 +19,9 @@ function love.load(args)
   love.graphics.setDefaultFilter("nearest", "nearest")
   math.randomseed(os.time())
   options.load(fs)
+  -- zbieranie śmieci małymi krokami (bez długich przycięć)
+  collectgarbage("setpause", 120)
+  collectgarbage("setstepmul", 200)
 
   clock = Clock.new(config.TICKS_PER_SECOND, config.MAX_TICKS_PER_FRAME)
   states = StateManager.new()
@@ -52,6 +55,7 @@ function love.update(dt)
     states:call("tick")
   end
   states:call("update", dt, clock:alpha())
+  collectgarbage("step", 2)
 end
 
 function love.draw()

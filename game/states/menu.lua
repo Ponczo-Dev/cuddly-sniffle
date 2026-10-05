@@ -32,7 +32,7 @@ function Menu:enter(params)
   self.newName = "Nowy swiat"
   self.newSeed = ""
   self.newMode = 1
-  self.focus = "name"
+  self.activeField = "name"
   self.lastClick = 0
   self.time = 0
   love.mouse.setRelativeMode(false)
@@ -152,10 +152,10 @@ function Menu:drawCreate()
   local fx, fw = math.floor(w / 2 - 100 * s), 200 * s
   gui.text("Nazwa swiata", fx, 44 * s, { 0.65, 0.65, 0.65 })
   self.nameField = { x = fx, y = 54 * s, w = fw, h = 20 * s }
-  gui.textField(self.newName, fx, 54 * s, fw, 20 * s, self.focus == "name")
+  gui.textField(self.newName, fx, 54 * s, fw, 20 * s, self.activeField == "name")
   gui.text("Ziarno (seed) - puste = losowe", fx, 82 * s, { 0.65, 0.65, 0.65 })
   self.seedField = { x = fx, y = 92 * s, w = fw, h = 20 * s }
-  gui.textField(self.newSeed, fx, 92 * s, fw, 20 * s, self.focus == "seed", "np. 12345 albo slowo")
+  gui.textField(self.newSeed, fx, 92 * s, fw, 20 * s, self.activeField == "seed", "np. 12345 albo slowo")
   local mode = MODES[self.newMode]
   self.buttons = {
     { x = fx, y = 124 * s, w = fw, h = 20 * s, action = "mode", label = "Tryb gry: " .. mode.label },
@@ -228,7 +228,7 @@ function Menu:action(a)
     elseif a == "new" then
       self.newName = "Nowy swiat"
       self.newSeed = ""
-      self.focus = "name"
+      self.activeField = "name"
       self.page = "create"
     elseif a == "delete" and self.selected then
       self.page = "confirm"
@@ -262,8 +262,8 @@ function Menu:mousepressed(x, y, button)
   end
   if button ~= 1 then return end
   if self.page == "create" then
-    if hit(self.nameField, x, y) then self.focus = "name" end
-    if hit(self.seedField, x, y) then self.focus = "seed" end
+    if hit(self.nameField, x, y) then self.activeField = "name" end
+    if hit(self.seedField, x, y) then self.activeField = "seed" end
   end
   if self.page == "worlds" and self.rows then
     for i, r in ipairs(self.rows) do
@@ -297,8 +297,8 @@ end
 
 function Menu:textinput(t)
   if self.page ~= "create" then return end
-  if self.focus == "name" and #self.newName < 32 then self.newName = self.newName .. t
-  elseif self.focus == "seed" and #self.newSeed < 32 then self.newSeed = self.newSeed .. t end
+  if self.activeField == "name" and #self.newName < 32 then self.newName = self.newName .. t
+  elseif self.activeField == "seed" and #self.newSeed < 32 then self.newSeed = self.newSeed .. t end
 end
 
 function Menu:keypressed(key)
@@ -308,10 +308,10 @@ function Menu:keypressed(key)
   end
   if self.page == "create" then
     if key == "backspace" then
-      if self.focus == "name" then self.newName = self.newName:sub(1, -2)
+      if self.activeField == "name" then self.newName = self.newName:sub(1, -2)
       else self.newSeed = self.newSeed:sub(1, -2) end
     elseif key == "tab" then
-      self.focus = self.focus == "name" and "seed" or "name"
+      self.activeField = self.activeField == "name" and "seed" or "name"
     elseif key == "return" then
       self:action("create")
     elseif key == "escape" then

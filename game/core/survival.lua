@@ -184,6 +184,9 @@ function S.damage(game, amount, source, attacker)
     game.hurtTime = 10
   end
 
+  if S.isBlocking(game) and (source == "mob" or source == "arrow" or source == "explosion") then
+    amount = (1 + amount) * 0.5
+  end
   if not UNBLOCKABLE[source] then
     local points = S.armorPoints(game)
     if points > 0 then
@@ -333,6 +336,17 @@ function S.startEating(game)
   end
   game.using = { kind = "eat", ticks = 0, slot = game.selected, id = s.id }
   return true
+end
+
+-- Blokowanie mieczem (Beta 1.8): prawy przycisk, połowa obrażeń, wolniejszy ruch
+function S.startBlocking(game)
+  local s = game:heldStack()
+  game.using = { kind = "block", ticks = 0, slot = game.selected, id = s and s.id }
+  return true
+end
+
+function S.isBlocking(game)
+  return game.using ~= nil and game.using.kind == "block"
 end
 
 function S.startBow(game)

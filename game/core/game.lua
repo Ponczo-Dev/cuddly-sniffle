@@ -503,6 +503,7 @@ function Game:useItem(hit)
     return true
   end
   if d.use == "bow" then return self.survival.startBow(self) end
+  if d.toolType == "sword" then return self.survival.startBlocking(self) end
   if d.use == "throw" then
     if self.mobs then self.mobs.throwItem(self, stack.id) end
     self:consumeHeld(1)

@@ -161,7 +161,15 @@ function M.pullFromNeighbors(world, chunk, sky)
       for k = 0, SIZE - 1 do
         local lx = s[3] or k
         local lz = s[4] or k
-        for y = 0, HEIGHT - 1 do
+        -- nad terenem wszędzie jest pełne światło nieba: nie ma czego rozchodzić
+        local top = HEIGHT - 1
+        if sky then
+          local ox = s[3] and (s[1] < 0 and 0 or SIZE - 1) or k
+          local oz = s[4] and (s[2] < 0 and 0 or SIZE - 1) or k
+          top = math.max(n.heightMap[lx + lz * SIZE], chunk.heightMap[ox + oz * SIZE]) + 1
+          if top > HEIGHT - 1 then top = HEIGHT - 1 end
+        end
+        for y = 0, top do
           local l = arr[lx + lz * SIZE + y * 256]
           if l > 1 then
             qpush(n.cx * SIZE + lx, y, n.cz * SIZE + lz, l)

@@ -494,9 +494,14 @@ function Play:update(dt, alpha)
   -- ładowanie świata z limitem czasu na klatkę
   local start = love.timer.getTime()
   local budget = 0.006
+  local pcx, pcz = floor(game.player.x / 16), floor(game.player.z / 16)
   repeat
-    local gen, lit = game.world:updateLoading(floor(game.player.x / 16), floor(game.player.z / 16),
-      game.renderDistance, 1)
+    -- najpierw oświetlanie gotowych chunków, potem generowanie nowych
+    local _, lit = game.world:updateLoading(pcx, pcz, game.renderDistance, 0, 1)
+    local gen = 0
+    if love.timer.getTime() - start < budget then
+      gen = game.world:updateLoading(pcx, pcz, game.renderDistance, 1, 0)
+    end
   until (gen == 0 and lit == 0) or love.timer.getTime() - start > budget
   local p = game.player
   local removed = game.world:unloadFar(floor(p.x / 16), floor(p.z / 16), game.renderDistance + 4)
@@ -736,12 +741,18 @@ function Play:drawHand(alpha)
       local mesh = models.spriteMesh(held.id, held.damage)
       if mesh then
         local bowPull = (using and using.kind == "bow") and math.min(1, using.ticks / 20) or 0
+        local blocking = using and using.kind == "block"
+        if blocking then sw, sw2 = 0, 0 end
         mat4.translation(tmpM, 0.6 + bobX - sw2 * 0.4 - bowPull * 0.3,
           -0.45 + bobY - equip * 0.6 + sw * 0.2 + eatBob, -0.9 - sw2 * 0.2 + bowPull * 0.2)
         mat4.rotationY(tmpM2, math.rad(-80) + bowPull * 1.2)
         mat4.multiply(tmpM, tmpM, tmpM2)
-        mat4.rotationZ(tmpM2, math.rad(25) - sw * 1.0)
+        mat4.rotationZ(tmpM2, math.rad(blocking and 70 or 25) - sw * 1.0)
         mat4.multiply(tmpM, tmpM, tmpM2)
+        if blocking then
+          mat4.rotationX(tmpM2, math.rad(-30))
+          mat4.multiply(tmpM, tmpM, tmpM2)
+        end
         mat4.scale(tmpM2, 0.75, 0.75, 0.75)
         mat4.multiply(tmpM, tmpM, tmpM2)
         models.drawMesh(mesh, tmpM)

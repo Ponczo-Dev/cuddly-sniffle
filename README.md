@@ -1,10 +1,11 @@
 # Minecraft Lua (era Beta)
 
-Klon Minecrafta w stylu Java Edition Beta 1.0–1.8, pisany w Lua na frameworku
+Klon Minecrafta w stylu Java Edition Beta 1.0–1.8, napisany w Lua na frameworku
 [LÖVE 11.5](https://love2d.org). Działa na Windows 10 **bez uprawnień administratora**.
+Wszystkie tekstury, modele i dźwięki są generowane w kodzie, więc nie potrzeba żadnych plików graficznych.
 Plan projektu i zasady pracy z AI są w [`MASTER_PROMPT.md`](MASTER_PROMPT.md).
 
-**Obecny etap: Faza 0 (setup) ukończona.**
+**Stan: fazy 0–10 z planu ukończone.**
 
 ## Instalacja (jednorazowo, bez admina)
 
@@ -13,42 +14,97 @@ Plan projektu i zasady pracy z AI są w [`MASTER_PROMPT.md`](MASTER_PROMPT.md).
    (`love-11.5-win64.zip`). Rozpakuj jego zawartość do folderu `love\` w projekcie.
    Jeśli Windows blokuje pliki: prawy klik na ZIP → Właściwości → „Odblokuj” → OK,
    i dopiero wtedy rozpakuj.
-3. **Lua do testów:** skopiuj swój `lua.exe` do folderu `lua\` w projekcie
-   (razem z plikiem `.dll`, jeśli leży obok, np. `lua54.dll`).
-   Możesz też wpisać ścieżkę do niego w linii `LUA_CUSTOM` w `test.bat`.
+3. **Lua do testów (opcjonalnie):** skopiuj swój `lua.exe` do folderu `lua\`
+   (razem z plikiem `.dll`, jeśli leży obok). Możesz też wpisać ścieżkę w `LUA_CUSTOM` w `test.bat`.
 
 ```
 minecraft-lua\
   love\        <- love.exe + pliki .dll z ZIP-a LÖVE
-  lua\         <- Twój lua.exe
+  lua\         <- Twój lua.exe (tylko do testów)
   game\        <- kod gry
   run.bat      <- uruchamia grę
-  test.bat     <- uruchamia testy
+  test.bat     <- uruchamia testy logiki
 ```
 
-## Uruchamianie
+Zapisy światów i ustawienia trafiają do `%APPDATA%\LOVE\minecraft-lua\`.
 
-| Plik | Co robi |
+## Sterowanie
+
+| Klawisz | Akcja |
 |---|---|
-| `run.bat` | Uruchamia grę w LÖVE (z konsolą na komunikaty `print`). |
-| `test.bat` | Uruchamia testy logiki gry przez `lua.exe`. Na końcu pokazuje `Wynik: X OK, 0 BLAD`. |
+| W A S D | ruch |
+| Mysz | rozglądanie się |
+| Spacja | skok / pływanie w górę. Podwójne wciśnięcie w trybie kreatywnym: latanie |
+| Shift | kucanie (nie spadasz z krawędzi), w locie w dół |
+| Ctrl + W albo podwójne W | sprint (zużywa głód) |
+| LPM | kopanie / atak |
+| PPM | stawianie bloku, używanie (drzwi, skrzynia, piec, stół, łóżko), jedzenie, łuk, blokowanie mieczem |
+| ŚPM | wybór wskazanego bloku (w kreatywnym daje stos) |
+| 1–9, kółko myszy | wybór slotu na pasku |
+| E | ekwipunek (w kreatywnym: wszystkie bloki) |
+| Q / Ctrl+Q | wyrzuć 1 / cały stos |
+| T albo / | czat i komendy |
+| Esc | pauza (opcje, zapis i wyjście) |
+| F1 | ukryj HUD |
+| F2 | zrzut ekranu (do folderu zapisu) |
+| F3 | ekran debugowania (pozycja, biom, światło, FPS) |
+| F5 | widok z trzeciej osoby |
+| F11 | pełny ekran |
 
-### Faza 0: co powinno być widać
+W oknach ekwipunku działają: LPM (cały stos), PPM (połowa albo po 1), Shift+klik (szybkie przeniesienie),
+przeciąganie ze stosem (rozłożenie po slotach), Q nad slotem (wyrzuć), 1–9 nad slotem (zamiana z paskiem).
 
-- Niebieskie okno „MINECRAFT LUA - Faza 0” z obracającym się sześcianem.
-- Informacje: wersja LÖVE (11.x), Lua (LuaJIT), karta graficzna, **Depth buffer: 24 bit**.
-- Licznik ticków rośnie o 20 na sekundę. FPS w prawym górnym rogu.
-- Klawisze: **ESC** wyjście, **F11** pełny ekran, **F3** pokaż/ukryj FPS.
-- `test.bat` kończy się linią `Wynik: 23 OK, 0 BLAD`.
+## Co jest w grze
 
-### Typowe problemy
+- **Świat:** nieskończony teren z ziarna (seed). Biomy: równiny, las, pustynia, tajga, tundra, bagno,
+  góry, ocean, plaża. Do tego jaskinie, wąwozy, jeziora lawy na dnie, rudy na właściwych wysokościach,
+  drzewa (dąb, brzoza, świerk), trawa, kwiaty, kaktusy, trzcina, dynie, glina oraz lochy ze spawnerem i skrzyniami.
+- **Światło:** światło nieba i bloków (0–15), płynne cieniowanie, ambient occlusion,
+  cykl dnia i nocy (20 minut), wschody i zachody słońca, słońce, księżyc, gwiazdy, chmury.
+- **Pogoda:** deszcz, śnieg w zimnych biomach (pokrywa śniegu, zamarzanie wody), burze z piorunami.
+- **Przetrwanie (Beta 1.8):** 20 punktów zdrowia, głód z nasyceniem i zmęczeniem, regeneracja,
+  obrażenia od upadku, tonięcia, lawy, ognia, kaktusa i próżni. Pancerz (skóra, żelazo, złoto, diament),
+  doświadczenie z kulek, śmierć z wypadaniem przedmiotów i odrodzenie (także w łóżku).
+- **Walka:** ciosy krytyczne w locie, blokowanie mieczem, łuk ładowany przytrzymaniem, odrzut.
+- **Moby:** świnia, krowa (dojenie), owca (strzyżenie, kolory), kurczak (jajka), wilk (oswajanie kością),
+  zombie, szkielet z łukiem, pająk, creeper (wybucha, piorun go ładuje) i enderman (teleport,
+  nie patrz mu w oczy). Rozmnażanie zwierząt, spawn potworów w ciemności, palenie się w słońcu.
+- **Ekwipunek:** 36 slotów + 4 sloty pancerza, crafting 2×2 i 3×3 (ponad 100 receptur),
+  piec z paliwem, skrzynie pojedyncze i podwójne.
+- **Bloki i mechaniki:** woda i lawa płyną (źródła, obsydian, bruk), piasek i żwir spadają, liście opadają,
+  pszenica rośnie na nawodnionym polu, mączka kostna, sadzonki wyrastają w drzewa, TNT,
+  krzesiwo i ogień, drzwi, łóżko, drabiny, pochodnie, wiadra.
+- **Tryby:** przetrwanie, kreatywny (latanie, wszystkie bloki), hardcore.
+- **Menu:** lista światów, tworzenie świata (nazwa, ziarno, tryb), usuwanie, opcje (zasięg widzenia,
+  pole widzenia, czułość, głośność, skala GUI, trudność), autozapis co minutę.
+- **Dźwięki:** kopanie i kroki zależne od materiału, głosy mobów, wybuchy, deszcz. Wszystkie wygenerowane w kodzie.
+
+## Komendy czatu
+
+`/help`, `/time set day|night|<liczba>`, `/gamemode survival|creative`, `/give <nazwa|id> [ilość]`,
+`/tp <x> <y> <z>`, `/weather clear|rain|thunder`, `/summon <mob>`, `/difficulty 0-3`,
+`/xp <ilość>`, `/seed`, `/kill`, `/heal`, `/clear`, `/spawnpoint`.
+
+Przykład: `/give diamond_pickaxe`, `/give torch 64`, `/summon creeper`.
+
+## Parametry uruchomienia (do testów)
+
+W `run.bat` można dopisać parametry po `"%~dp0game"`:
+
+| Parametr | Działanie |
+|---|---|
+| `--play` | od razu tymczasowy świat w trybie przetrwania (bez zapisu) |
+| `--creative` | to samo w trybie kreatywnym |
+| `--seed=123` | ziarno dla `--play` / `--creative` |
+| `--boot` | ekran testowy z Fazy 0 |
+
+## Typowe problemy
 
 | Objaw | Rozwiązanie |
 |---|---|
 | `run.bat`: „Nie znaleziono love.exe” | LÖVE nie jest rozpakowany do `love\`. Sprawdź, czy `love.exe` leży w `love\` albo w podfolderze. |
 | `test.bat`: „Nie znaleziono lua.exe” | Skopiuj `lua.exe` do `lua\` albo uzupełnij `LUA_CUSTOM` w `test.bat`. |
-| Brak pliku `lua54.dll` | Twój `lua.exe` potrzebuje biblioteki .dll. Skopiuj ją obok `lua.exe`. |
-| Czerwony napis „brak depth buffera” | Zaktualizuj sterownik karty graficznej. Bez tego 3D z Fazy 1 nie zadziała. |
+| Niskie FPS | Esc → Opcje → zmniejsz „Zasięg widzenia” (np. do 4) i wyłącz chmury. |
 | Niebieski ekran błędu LÖVE | Skopiuj cały tekst błędu (Ctrl+C w oknie błędu) i wklej do AI. |
 | Windows SmartScreen blokuje `love.exe` | „Więcej informacji” → „Uruchom mimo to” albo „Odblokuj” we Właściwościach ZIP-a. |
 
@@ -56,22 +112,28 @@ minecraft-lua\
 
 ```
 game\
-  conf.lua            konfiguracja okna LÖVE (depth buffer 24, vsync, konsola)
-  main.lua            pętla gry: zegar 20 TPS + menedżer stanów + skróty F3/F11
-  core\               czysta logika BEZ love.* (testowana przez lua.exe)
-    strict.lua        błąd przy literówce w nazwie zmiennej globalnej
-    bit.lua           operacje bitowe zgodne z LuaJIT i Lua 5.1–5.4
-    util.lua          clamp, lerp, round, floorDiv...
-    config.lua        wszystkie stałe (20 TPS, chunk 16x16x128, FOV...)
-    clock.lua         stały krok czasowy (fixed timestep) + interpolacja
-  states\
-    manager.lua       przełączanie stanów gry
-    boot.lua          ekran testowy Fazy 0
-  tests\
-    run_all.lua       uruchamia wszystkie testy
-    testlib.lua       mini-framework asercji
-    test_*.lua        testy modułów
+  conf.lua, main.lua     okno LÖVE, pętla 20 TPS, menedżer stanów
+  core\                  czysta logika BEZ love.* (testowana przez lua.exe)
+    game.lua             sesja gry: tick, kopanie, stawianie, przedmioty, pogoda, sen
+    world.lua chunk.lua  świat i chunki 16x128x16 (tablice bajtów, FFI w LuaJIT)
+    worldgen.lua noise.lua trees.lua   generator świata
+    lighting.lua         światło nieba i bloków (BFS)
+    mesher.lua           bloki -> trójkąty (culling, AO, płynne światło)
+    blocks.lua items.lua recipes.lua   rejestry bloków, przedmiotów i receptur
+    blocklogic.lua       zachowania bloków (ciecze, rośliny, drzwi, łóżka...)
+    player.lua physics.lua raycast.lua   ruch i kolizje
+    survival.lua mobs.lua entities.lua   zdrowie/głód, moby, byty, wybuchy
+    inventory.lua container.lua furnace.lua   ekwipunek i okna
+    save.lua fs.lua serialize.lua options.lua commands.lua
+    mat4.lua frustum.lua rng.lua bit.lua bytearray.lua util.lua clock.lua strict.lua
+  render\                grafika i dźwięk (love.*)
+    chunkrenderer.lua shader.lua camera.lua atlas.lua texturegen.lua
+    models.lua icons.lua itemart.lua sky.lua particles.lua weather.lua
+    hud.lua gui.lua sound.lua
+  ui\                    okna: ekwipunek, kreatywny, pauza, opcje, śmierć, czat
+  states\                menu, ładowanie, gra (+ ekran testowy Fazy 0)
+  tests\                 testy logiki (test.bat)
 ```
 
-Kod działa jednocześnie w LuaJIT (LÖVE) i w zwykłym Lua 5.1–5.4. Bez operatorów
-bitowych `& | << >>`, bez `//`, bez `utf8`. Szczegóły w `MASTER_PROMPT.md`.
+Kod działa jednocześnie w LuaJIT (LÖVE) i w zwykłym Lua 5.1–5.4. Testy (`test.bat`) sprawdzają
+między innymi crafting, ekwipunek, piec, kopanie, fizykę, głód, światło, ciecze, moby i zapis chunków.

@@ -25,11 +25,14 @@ function M.load()
     seed = (seed * 16807) % 2147483647
     return seed / 2147483647
   end
+  -- cienkie smugi: 64 kolumny tekstury na blok, tylko co kilka zapalona
   local rainCols = {}
-  for x = 0, 15 do rainCols[x] = { start = math.floor(rnd() * 64), len = 4 + math.floor(rnd() * 6), on = rnd() < 0.5 } end
-  rainImg = makeImage(16, 64, function(x, y)
+  for x = 0, 63 do
+    rainCols[x] = { start = math.floor(rnd() * 64), len = 5 + math.floor(rnd() * 8), on = rnd() < 0.18 }
+  end
+  rainImg = makeImage(64, 64, function(x, y)
     local c = rainCols[x]
-    if c.on and ((y - c.start) % 64) < c.len then return 0.6, 0.7, 1, 0.65 end
+    if c.on and ((y - c.start) % 64) < c.len then return 0.65, 0.75, 1, 0.7 end
     return 0, 0, 0, 0
   end)
   local flakes = {}

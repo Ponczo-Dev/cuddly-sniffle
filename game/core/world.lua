@@ -124,7 +124,7 @@ end
 --   budget: ile chunków maks. wygenerować w tym wywołaniu
 -- Generujemy o 2 chunki dalej, oświetlamy o 1 dalej niż rysujemy,
 -- żeby brzegi miały poprawne światło i ściany.
-function World:updateLoading(centerCx, centerCz, radius, budget)
+function World:updateLoading(centerCx, centerCz, radius, budget, lightBudget)
   local generated = 0
   local genList = spiral(radius + 2)
   for i = 1, #genList do
@@ -140,8 +140,9 @@ function World:updateLoading(centerCx, centerCz, radius, budget)
   -- oświetlenie chunków, które mają wszystkich sąsiadów
   local litList = spiral(radius + 1)
   local lit = 0
+  lightBudget = lightBudget or budget
   for i = 1, #litList do
-    if lit >= budget then break end
+    if lit >= lightBudget then break end
     local o = litList[i]
     local cx, cz = centerCx + o[1], centerCz + o[2]
     local c = self.chunks[key(cx, cz)]
