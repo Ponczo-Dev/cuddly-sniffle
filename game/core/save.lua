@@ -202,6 +202,8 @@ local function serializeEntity(e)
     return { t = "mob", kind = e.kind, x = e.x, y = e.y, z = e.z, yaw = e.yaw, health = e.health,
       tamed = e.tamed, sheared = e.sheared, color = e.color, growth = e.growth, sitting = e.sitting,
       charged = e.charged, persistent = e.persistent }
+  elseif (e.type == "minecart" or e.type == "boat") and not e.dead then
+    return { t = e.type, x = e.x, y = e.y, z = e.z, yaw = e.yaw }
   elseif e.type == "item" and not e.dead then
     return { t = "item", x = e.x, y = e.y, z = e.z, id = e.stack.id, count = e.stack.count,
       damage = e.stack.damage, age = e.age }
@@ -242,6 +244,10 @@ function M.restoreEntities(game, chunk)
       e.sitting, e.charged = s.sitting, s.charged
       if s.persistent ~= nil then e.persistent = s.persistent end
       if e.tamed then e.owner = game.player; e.maxHealth = 20 end
+    elseif s.t == "minecart" or s.t == "boat" then
+      local vehicles = require("core.vehicles")
+      if s.t == "minecart" then vehicles.spawnMinecart(game, s.x, s.y, s.z)
+      else vehicles.spawnBoat(game, s.x, s.y, s.z, s.yaw) end
     elseif s.t == "item" then
       local e = entities.newItem(s.x, s.y, s.z, { id = s.id, count = s.count, damage = s.damage }, 0, 0, 0)
       e.age = s.age or 0

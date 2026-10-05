@@ -191,6 +191,9 @@ I.define { id = 335, name = "milk_bucket", label = "Wiadro mleka", icon = "milk_
 -- ---------------------------------------------------------------------------
 -- Przedmioty stawiające bloki
 -- ---------------------------------------------------------------------------
+I.define { id = 328, name = "minecart", label = "Wagonik", icon = "minecart", stack = 1,
+  use = "vehicle" }
+I.define { id = 333, name = "boat", label = "Lodka", icon = "boat", stack = 1, use = "vehicle" }
 I.define { id = 324, name = "door_item", label = "Drzwi", icon = "door", stack = 1,
   placeBlock = 64 }
 I.define { id = 355, name = "bed_item", label = "Lozko", icon = "bed", stack = 1,

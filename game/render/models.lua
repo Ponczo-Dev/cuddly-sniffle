@@ -259,6 +259,20 @@ local function buildModels()
   end
   M.outline = meshFromBoxes(edges)
 
+  -- wagonik i łódka
+  local iron, ironD = { 0.6, 0.6, 0.62 }, { 0.3, 0.3, 0.32 }
+  M.minecart = meshFromBoxes({
+    B(-8, 1, -10, 8, 3, 10, ironD), B(-8, 3, -10, -6, 10, 10, iron), B(6, 3, -10, 8, 10, 10, iron),
+    B(-6, 3, -10, 6, 10, -8, iron), B(-6, 3, 8, 6, 10, 10, iron),
+    B(-7, 0, -7, -5, 2, -5, black), B(5, 0, -7, 7, 2, -5, black),
+    B(-7, 0, 5, -5, 2, 7, black), B(5, 0, 5, 7, 2, 7, black),
+  })
+  local wood, woodD = { 0.62, 0.47, 0.28 }, { 0.45, 0.33, 0.18 }
+  M.boat = meshFromBoxes({
+    B(-12, 0, -8, 12, 2, 8, woodD), B(-12, 2, -8, 12, 7, -6, wood), B(-12, 2, 6, 12, 7, 8, wood),
+    B(-12, 2, -6, -10, 7, 6, wood), B(10, 2, -6, 12, 7, 6, wood),
+  })
+
   -- strzała
   M.arrow = meshFromBoxes({ B(-0.5, -0.5, -7, 0.5, 0.5, 7, { 0.5, 0.35, 0.2 }),
     B(-1, -1, -8, 1, 1, -6, { 0.6, 0.6, 0.6 }), B(-0.2, -1.5, 5, 0.2, 1.5, 8, white) })

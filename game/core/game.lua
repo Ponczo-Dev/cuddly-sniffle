@@ -417,6 +417,9 @@ function Game:placeFromHand(hit)
 
   world:setBlock(x, y, z, blockId, meta)
   if bdef.tileEntity then self:createTile(x, y, z, bdef.tileEntity) end
+  if bdef.rail then
+    require("core.rails").onPlaced(self, x, y, z, math.abs(lx) > math.abs(lz) and "x" or "z")
+  end
   self:notifyNeighbors(x, y, z)
   if bdef.redstone then require("core.redstone").notifyAround(self, x, y, z) end
   if bdef.liquid then self:scheduleTick(x, y, z, 5) end
@@ -505,6 +508,11 @@ function Game:useItem(hit)
     return true
   end
   if d.use == "bow" then return self.survival.startBow(self) end
+  if d.use == "vehicle" then
+    local vehicles = require("core.vehicles")
+    local vh = stack.id == 333 and vehicles.waterHit(self) or hit
+    return vehicles.placeFromItem(self, vh, stack.id)
+  end
   if d.toolType == "sword" then return self.survival.startBlocking(self) end
   if d.use == "throw" then
     if self.mobs then self.mobs.throwItem(self, stack.id) end
@@ -901,6 +909,8 @@ function Game:tick()
   if not self.dead then
     if self.sleeping then
       self:tickSleep()
+    elseif p.riding then
+      require("core.vehicles").tickRider(self)
     else
       p.input.forward = inp.forward
       p.input.strafe = inp.strafe
@@ -922,6 +932,7 @@ function Game:tick()
 
   self.survival.tick(self)
   self.entities:tick()
+  require("core.vehicles").followVehicle(self)
   -- płyty naciskowe pod graczem i bytami
   local redstone = require("core.redstone")
   if p.onGround and not self.dead then redstone.checkPlate(self, p) end

@@ -136,6 +136,11 @@ local GENERATORS = {
       return lp * 4 * env(t, 0.05, 0.9)
     end)
   end,
+  piston = function()
+    return synth(0.25, function(t)
+      return (noise() * 0.5 + math.sin(t * 2 * math.pi * 90) * 0.4) * env(t, 0.003, 0.06)
+    end)
+  end,
   teleport = function() return tone(0.4, 200, 1400, "sine", 0.01, 0.15, 0.4) end,
   enderman_stare = function() return tone(0.8, 90, 60, "saw", 0.05, 0.4, 0.5) end,
   rain = function() return filteredNoise(2.0, 0.5, 0, 1000, 0.25) end,

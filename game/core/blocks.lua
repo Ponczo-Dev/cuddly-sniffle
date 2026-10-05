@@ -695,6 +695,36 @@ B.define { id = 85, name = "fence", label = "Plotek", tex = "planks", opaque = f
   drops = function() return { { id = 85, count = 1, damage = 0 } } end }
 
 -- ---------------------------------------------------------------------------
+-- Tory (kształt "rail": płaska płytka, wzniesienia i zakręty)
+-- ---------------------------------------------------------------------------
+local function railBounds(meta)
+  local shape = meta % 8
+  if meta < 16 and meta >= 10 then shape = meta end
+  if shape >= 2 and shape <= 5 then return 0, 0, 0, 1, 0.5, 1 end
+  return 0, 0, 0, 1, 2 * P, 1
+end
+B.define { id = 66, name = "rail", label = "Tory", tex = "rail", solid = false, opaque = false,
+  shape = "rail", bounds = railBounds, hardness = 0.7, resistance = 0.7, tool = "pickaxe",
+  icon = "flat", rail = true,
+  texFn = (function()
+    local straight, corner = tiles.get("rail"), tiles.get("rail_corner")
+    return function(_, meta) return (meta >= 6 and meta <= 9) and corner or straight end
+  end)(),
+  drops = function() return { { id = 66, count = 1, damage = 0 } } end }
+B.define { id = 27, name = "powered_rail", label = "Tory zasilane", solid = false, opaque = false,
+  shape = "rail", bounds = railBounds, hardness = 0.7, resistance = 0.7, tool = "pickaxe",
+  icon = "flat", rail = true, redstone = "poweredrail", tex = "powered_rail",
+  texFn = (function()
+    local off, on = tiles.get("powered_rail"), tiles.get("powered_rail_on")
+    return function(_, meta) return meta >= 8 and on or off end
+  end)(),
+  drops = function() return { { id = 27, count = 1, damage = 0 } } end }
+B.define { id = 28, name = "detector_rail", label = "Tory z czujnikiem", tex = "detector_rail",
+  solid = false, opaque = false, shape = "rail", bounds = railBounds, hardness = 0.7,
+  resistance = 0.7, tool = "pickaxe", icon = "flat", rail = true, redstone = "detector",
+  drops = function() return { { id = 28, count = 1, damage = 0 } } end }
+
+-- ---------------------------------------------------------------------------
 -- Szybkie tablice właściwości (indeks = id, 0..255) dla meshera i fizyki
 -- ---------------------------------------------------------------------------
 B.OPAQUE = {}   -- 1 = pełny nieprzezroczysty sześcian

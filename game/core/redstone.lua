@@ -49,6 +49,8 @@ function R.sourcePower(world, sx, sy, sz, tx, ty, tz)
     return meta >= 8 and 15 or 0
   elseif id == PLATE then
     return meta > 0 and 15 or 0
+  elseif id == 28 then
+    return meta >= 8 and 15 or 0
   elseif id == REP_ON then
     local f = FACING4[meta % 4]
     if sx + f[1] == tx and sy == ty and sz + f[3] == tz then return 15 end
@@ -286,6 +288,19 @@ function R.onNeighborChanged(game, x, y, z, id, meta)
     end
   elseif kind == "piston" then
     R.updatePiston(game, x, y, z, id, meta)
+  elseif kind == "poweredrail" then
+    local powered = R.railChainPowered(world, x, y, z, meta % 8)
+    local want = (meta % 8) + (powered and 8 or 0)
+    if want ~= meta then
+      world:setBlock(x, y, z, id, want)
+      -- sąsiednie tory zasilane w łańcuchu też się aktualizują
+      for _, d in ipairs(DIRS) do
+        local nx, ny, nz = x + d[1], y + d[2], z + d[3]
+        if world:getBlock(nx, ny, nz) == 27 then
+          require("core.blocklogic").onNeighborChanged(game, nx, ny, nz)
+        end
+      end
+    end
   elseif id == TNT then
     if R.isPowered(world, x, y, z) then game:primeTnt(x, y, z) end
   elseif id == DOOR then
@@ -325,6 +340,20 @@ function R.scheduledTick(game, x, y, z, id, meta)
       game:emit("sound", "click", x + 0.5, y + 0.5, z + 0.5)
       R.notifyAround(game, x, y, z)
     end
+  elseif kind == "detector" then
+    if meta >= 8 then
+      local occupied = false
+      for _, e in ipairs(game.entities.list) do
+        if e.type == "minecart" and not e.dead and math.floor(e.x) == x and math.floor(e.z) == z
+          and math.abs(e.y - y) < 1 then occupied = true end
+      end
+      if occupied then
+        game:scheduleTick(x, y, z, 20)
+      else
+        world:setBlock(x, y, z, id, meta - 8)
+        R.notifyAround(game, x, y, z)
+      end
+    end
   elseif kind == "plate" then
     if meta > 0 then
       if R.plateOccupied(game, x, y, z) then
@@ -336,6 +365,27 @@ function R.scheduledTick(game, x, y, z, id, meta)
       end
     end
   end
+end
+
+-- Tor zasilany: zasilony bezpośrednio albo przez łańcuch do 8 torów zasilanych
+function R.railChainPowered(world, x, y, z, shape)
+  if R.isPowered(world, x, y, z) then return true end
+  local axis = (shape == 1 or shape == 2 or shape == 3) and { 1, 0 } or { 0, 1 }
+  for _, sign in ipairs({ 1, -1 }) do
+    for i = 1, 8 do
+      local nx, nz = x + axis[1] * sign * i, z + axis[2] * sign * i
+      local found = false
+      for dy = -1, 1 do
+        if world:getBlock(nx, y + dy, nz) == 27 then
+          found = true
+          if R.isPowered(world, nx, y + dy, nz) then return true end
+          break
+        end
+      end
+      if not found then break end
+    end
+  end
+  return false
 end
 
 -- ---------------------------------------------------------------------------

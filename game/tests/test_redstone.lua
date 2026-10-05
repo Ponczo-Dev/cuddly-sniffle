@@ -114,4 +114,30 @@ suite:test("plotek laczy sie z sasiadami", function()
   T.eq(math.floor(w:getMeta(9, 64, 3) / 2) % 2, 1, "polaczony na -X")
 end)
 
+suite:test("tory: ksztalt, zakret i jazda wagonika", function()
+  local g = flatGame()
+  local w = g.world
+  local rails = require("core.rails")
+  local vehicles = require("core.vehicles")
+  -- prosty tor wzdłuż X, zakręt na końcu w stronę +Z
+  for x = 2, 8 do
+    w:setBlock(x, 64, 4, 66, 0)
+    rails.onPlaced(g, x, 64, 4, "x")
+  end
+  w:setBlock(8, 64, 5, 66, 0)
+  rails.onPlaced(g, 8, 64, 5, "z")
+  for z = 6, 9 do
+    w:setBlock(8, 64, z, 66, 0)
+    rails.onPlaced(g, 8, 64, z, "z")
+  end
+  T.eq(w:getMeta(4, 64, 4), 1, "prosty E-W")
+  local corner = w:getMeta(8, 64, 4)
+  T.truthy(corner >= 6 and corner <= 9, "zakret na rogu: " .. corner)
+  local cart = vehicles.spawnMinecart(g, 2.5, 64.0625, 4.5)
+  cart.vx = 0.3
+  for _ = 1, 80 do g:tick() end
+  T.truthy(cart.z > 6, "wagonik skrecil i pojechal na poludnie: z=" .. cart.z)
+  T.truthy(math.abs(cart.x - 8.5) < 0.2, "trzyma sie toru: x=" .. cart.x)
+end)
+
 return suite

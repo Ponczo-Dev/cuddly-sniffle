@@ -135,6 +135,14 @@ shaped(id("piston"), 1, { "PPP", "CIC", "CRC" }, { P = id("planks"), C = id("cob
 shaped(id("sticky_piston"), 1, { "S", "P" }, { S = id("slimeball"), P = id("piston") })
 shaped(id("fence"), 2, { "SSS", "SSS" }, { S = S })
 
+-- tory i pojazdy
+shaped(id("rail"), 16, { "I I", "ISI", "I I" }, { I = id("iron_ingot"), S = S })
+shaped(id("powered_rail"), 6, { "G G", "GSG", "GRG" }, { G = id("gold_ingot"), S = S, R = id("redstone") })
+shaped(id("detector_rail"), 6, { "I I", "IPI", "IRI" }, { I = id("iron_ingot"),
+  P = id("pressure_plate"), R = id("redstone") })
+shaped(id("minecart"), 1, { "# #", "###" }, { ["#"] = id("iron_ingot") })
+shaped(id("boat"), 1, { "# #", "###" }, { ["#"] = id("planks") })
+
 -- kolorowa wełna z barwników (uproszczone kolory)
 shapeless(id("wool"), 1, { id("wool"), { id = id("dye"), damage = 1 } }, 1)
 

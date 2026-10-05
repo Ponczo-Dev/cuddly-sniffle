@@ -286,6 +286,10 @@ end
 -- ---------------------------------------------------------------------------
 function M.playerAttack(game, e)
   local p = game.player
+  if e.isVehicle then
+    require("core.vehicles").attack(game, e)
+    return
+  end
   local held = game:heldStack()
   local dmg = items.attackDamage(held)
   -- cios krytyczny: w trakcie opadania (Beta 1.8)
@@ -313,7 +317,7 @@ function M.pickEntity(game, maxDist)
   local lx, ly, lz = p:lookVector()
   local best, bestD = nil, maxDist
   for _, e in ipairs(game.entities.list) do
-    if e.isMob and not e.dead and e.health > 0 then
+    if (e.isMob and not e.dead and e.health > 0) or (e.isVehicle and not e.dead and e ~= p.riding) then
       local hw = e.width / 2 + 0.1
       local d = raycast.rayBox(ex, ey, ez, lx, ly, lz,
         e.x - hw, e.y - 0.1, e.z - hw, e.x + hw, e.y + e.height + 0.1, e.z + hw)
@@ -325,6 +329,9 @@ end
 
 -- Prawy przycisk na mobie: karmienie, strzyżenie, dojenie, oswajanie
 function M.interact(game, e)
+  if e.isVehicle then
+    return require("core.vehicles").mount(game, e)
+  end
   local held = game:heldStack()
   local p = game.player
   local d = e.def

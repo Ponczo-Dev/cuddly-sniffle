@@ -367,6 +367,44 @@ local function meshLiquid(buf, def, id, meta, p, x, y, z)
 end
 
 -- ---------------------------------------------------------------------------
+-- Tory: płytka nad ziemią, obrót tekstury i wzniesienia
+-- ---------------------------------------------------------------------------
+local RAIL_ROT = { [0] = 0, [1] = 1, [2] = 1, [3] = 1, [4] = 0, [5] = 0, [6] = 0, [7] = 1, [8] = 2, [9] = 3 }
+local RAIL_UP = { [2] = { 1, 0 }, [3] = { -1, 0 }, [4] = { 0, -1 }, [5] = { 0, 1 } }
+local railCorners = { { 0, 1 }, { 1, 1 }, { 1, 0 }, { 0, 0 } } -- (x, z) BL, BR, TR, TL od góry
+
+local function meshRail(buf, def, id, meta, p, x, y, z)
+  local shape = id == 66 and meta % 16 or meta % 8
+  local s, b = ps[p] * 17, pl[p] * 17
+  local t = blocks.faceTile(def, 3, meta)
+  local tu = (t % 16) * TILE + EPS
+  local tv = floor(t / 16) * TILE + EPS
+  local rot = RAIL_ROT[shape] or 0
+  local up = RAIL_UP[shape]
+  local h = 1 / 16
+  local verts = {}
+  for k = 1, 4 do
+    local c = railCorners[k]
+    local cy = h
+    if up then
+      if (up[1] > 0 and c[1] == 1) or (up[1] < 0 and c[1] == 0)
+        or (up[2] > 0 and c[2] == 1) or (up[2] < 0 and c[2] == 0) then
+        cy = cy + 1
+      end
+    end
+    -- UV z obrotem o rot * 90 stopni
+    local u, v = c[1], c[2]
+    for _ = 1, rot do u, v = 1 - v, u end
+    verts[k] = { x + c[1], y + cy, z + c[2], tu + u * TILE_IN, tv + v * TILE_IN }
+  end
+  local order = { 1, 2, 3, 1, 3, 4, 1, 3, 2, 1, 4, 3 }
+  for j = 1, 12 do
+    local v = verts[order[j]]
+    buf:vertex(v[1], v[2], v[3], v[4], v[5], s, b, j <= 6 and 255 or 160)
+  end
+end
+
+-- ---------------------------------------------------------------------------
 -- Budowa mesha chunka.
 --   opaqueBuf: bloki nieprzezroczyste i "wycinane" (liście, rośliny)
 --   transBuf:  bloki półprzezroczyste (woda, lód)
@@ -394,6 +432,8 @@ function M.build(chunk, opaqueBuf, transBuf)
               meshCross(buf, def, id, meta, p, x, y, z)
             elseif shape == "liquid" then
               meshLiquid(buf, def, id, meta, p, x, y, z)
+            elseif shape == "rail" then
+              meshRail(buf, def, id, meta, p, x, y, z)
             end
           end
         end

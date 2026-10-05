@@ -644,6 +644,12 @@ function Play:drawEntities(alpha)
               mat4.multiply(tmpM, tmpM, tmpM2)
             end
             models.drawMesh(models.arrow, tmpM)
+          elseif e.type == "minecart" or e.type == "boat" then
+            s:send("u_light", light)
+            if e.hurtTime and e.hurtTime > 0 then s:send("u_tint", { 1, 0, 0, 0.3 }) end
+            models.baseMatrix(tmpM, x, y, z, e.yaw or 0)
+            models.drawMesh(e.type == "boat" and models.boat or models.minecart, tmpM)
+            s:send("u_tint", { 0, 0, 0, 0 })
           elseif e.type == "xp" then
             s:send("u_light", 1)
             local pulse = 0.8 + math.sin((e.age + alpha) * 0.4) * 0.2
