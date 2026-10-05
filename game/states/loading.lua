@@ -101,7 +101,8 @@ function Loading:finish()
     if self.folder then save.saveLevel(self.folder, game) end
   end
   self.stage = "done"
-  self.manager:switch(require("states.play"), { game = game, folder = self.folder, manager = self.manager })
+  self.manager:switch(require("states.play"), { game = game, folder = self.folder, manager = self.manager,
+    openLan = self.params.openLan, hostName = self.params.hostName })
 end
 
 function Loading:draw()

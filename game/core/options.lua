@@ -17,6 +17,8 @@ M.defaults = {
   showFps = false,
   clouds = true,
   invertMouse = false,
+  playerName = "Gracz",     -- nick w grze wieloosobowej
+  lastServer = "localhost", -- ostatni adres serwera
 }
 
 M.values = {}

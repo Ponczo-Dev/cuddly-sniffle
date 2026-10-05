@@ -33,14 +33,25 @@ local HELP = {
   "/tp <x> <y> <z>, /spawnpoint, /seed, /kill, /heal, /clear",
   "/weather clear|rain|thunder, /difficulty 0-3",
   "/summon <pig|cow|sheep|chicken|wolf|zombie|skeleton|spider|creeper|enderman>",
-  "/xp <ilosc>, /locate village|mineshaft",
+  "/xp <ilosc>, /locate village|mineshaft, /list (gracze w sieci)",
 }
+
+-- komendy zmieniające wspólny świat - u gościa niedostępne
+local HOST_ONLY = { time = true, weather = true, summon = true, difficulty = true, spawnpoint = true }
 
 function M.run(game, text)
   local args = {}
   for w in text:gmatch("%S+") do args[#args + 1] = w end
   local cmd = (args[1] or ""):lower():gsub("^/", "")
   local p = game.player
+  if game.netClient and HOST_ONLY[cmd] then
+    return "Tej komendy moze uzyc tylko gospodarz gry"
+  end
+  if cmd == "list" then
+    if not game.net then return "Grasz sam (gra jednoosobowa)" end
+    local names = game.net:playerNames()
+    return "Gracze (" .. #names .. "): " .. table.concat(names, ", ")
+  end
 
   if cmd == "help" or cmd == "?" then
     return table.concat(HELP, "\n")

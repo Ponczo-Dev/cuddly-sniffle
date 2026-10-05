@@ -5,7 +5,7 @@ Klon Minecrafta w stylu Java Edition Beta 1.0–1.8, napisany w Lua na framework
 Wszystkie tekstury, modele i dźwięki są generowane w kodzie, więc nie potrzeba żadnych plików graficznych.
 Plan projektu i zasady pracy z AI są w [`MASTER_PROMPT.md`](MASTER_PROMPT.md).
 
-**Stan: fazy 0–10 z planu ukończone + rozszerzenia: redstone i tłoki, tory i wagoniki, łódki, płotki, Nether z portalem, opuszczone kopalnie i wioski.**
+**Stan: fazy 0–10 z planu ukończone + rozszerzenia: redstone i tłoki, tory i wagoniki, łódki, płotki, Nether z portalem, opuszczone kopalnie i wioski, gra wieloosobowa w sieci LAN.**
 
 ## Instalacja (jednorazowo, bez admina)
 
@@ -90,11 +90,33 @@ przeciąganie ze stosem (rozłożenie po slotach), Q nad slotem (wyrzuć), 1–9
   Komenda `/locate village` albo `/locate mineshaft` pokazuje najbliższą.
 - **Dźwięki:** kopanie i kroki zależne od materiału, głosy mobów, wybuchy, deszcz. Wszystkie wygenerowane w kodzie.
 
+## Gra wieloosobowa (LAN)
+
+1. **Gospodarz** wchodzi do swojego świata, naciska **Esc → „Otwórz w sieci LAN”**.
+   W menu pauzy widać adres, np. `192.168.1.10:25565`.
+2. **Goście** (do 8 osób): menu główne → **„Gra wieloosobowa”** → wpisz adres gospodarza i swój nick → „Dołącz”.
+   Na tym samym komputerze (drugie okno gry) wpisz `localhost`.
+
+Co działa razem: wspólny świat (kopanie, budowanie, ciecze, redstone, drzwi, skrzynie i piece),
+moby atakują najbliższego gracza, walka, podnoszenie przedmiotów i XP, wyrzucanie przedmiotów,
+strzały, TNT, czat, wspólna pora dnia i pogoda, nicki nad głowami, komenda `/list`.
+Ekwipunek gościa jest zapisywany w świecie gospodarza i wraca przy następnej wizycie.
+Gdy ktoś jest połączony, menu pauzy nie zatrzymuje gry.
+
+Ograniczenia: portale do Netheru są wyłączone w grze sieciowej, goście nie mogą spać, jeździć
+wagonikiem ani łódką, karmić ani strzyc zwierząt. Komendy `/time`, `/weather`, `/summon`,
+`/difficulty` działają tylko u gospodarza.
+
+**Zapora Windows:** przy pierwszym otwarciu w sieci Windows może zapytać o dostęp dla `love.exe`.
+Bez uprawnień administratora zapora może blokować połączenia **przychodzące**. Wtedy gospodarzem niech
+będzie komputer, na którym da się na to zezwolić, bo dołączanie (połączenie wychodzące) zwykle działa bez admina.
+Gra w dwóch oknach na jednym komputerze (`localhost`) działa zawsze.
+
 ## Komendy czatu
 
 `/help`, `/time set day|night|<liczba>`, `/gamemode survival|creative`, `/give <nazwa|id> [ilość]`,
 `/tp <x> <y> <z>`, `/weather clear|rain|thunder`, `/summon <mob>`, `/difficulty 0-3`,
-`/xp <ilość>`, `/locate village|mineshaft`, `/seed`, `/kill`, `/heal`, `/clear`, `/spawnpoint`.
+`/xp <ilość>`, `/locate village|mineshaft`, `/list`, `/seed`, `/kill`, `/heal`, `/clear`, `/spawnpoint`.
 
 Przykład: `/give diamond_pickaxe`, `/give torch 64`, `/summon creeper`, `/give piston 4`, `/give rail 64`, `/give obsidian 10`, `/give flint_and_steel`.
 
@@ -108,6 +130,9 @@ W `run.bat` można dopisać parametry po `"%~dp0game"`:
 | `--creative` | to samo w trybie kreatywnym |
 | `--seed=123` | ziarno dla `--play` / `--creative` |
 | `--boot` | ekran testowy z Fazy 0 |
+| `--lan` | z `--play`/`--creative`: od razu otwiera świat w sieci LAN |
+| `--join=adres` | od razu dołącza do gry w sieci (np. `--join=localhost`) |
+| `--name=Nick` | nick w grze wieloosobowej |
 
 ## Typowe problemy
 
@@ -137,6 +162,7 @@ game\
     player.lua physics.lua raycast.lua   ruch i kolizje
     survival.lua mobs.lua entities.lua   zdrowie/głód, moby, byty, wybuchy
     inventory.lua container.lua furnace.lua   ekwipunek i okna
+    net\                 gra wieloosobowa: protocol, transport (enet), server, client
     save.lua fs.lua serialize.lua options.lua commands.lua
     mat4.lua frustum.lua rng.lua bit.lua bytearray.lua util.lua clock.lua strict.lua
   render\                grafika i dźwięk (love.*)
@@ -144,7 +170,7 @@ game\
     models.lua icons.lua itemart.lua sky.lua particles.lua weather.lua
     hud.lua gui.lua sound.lua
   ui\                    okna: ekwipunek, kreatywny, pauza, opcje, śmierć, czat
-  states\                menu, ładowanie, gra (+ ekran testowy Fazy 0)
+  states\                menu, ładowanie, łączenie z serwerem, gra (+ ekran testowy Fazy 0)
   tests\                 testy logiki (test.bat)
 ```
 

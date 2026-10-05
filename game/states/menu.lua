@@ -1,6 +1,6 @@
 -- states/menu.lua
 -- Menu główne: tytuł, lista światów, tworzenie nowego świata
--- (nazwa, ziarno, tryb gry), usuwanie, opcje.
+-- (nazwa, ziarno, tryb gry), usuwanie, opcje, dołączanie do gry w sieci LAN.
 
 local renderInit = require("render.init")
 local gui = require("render.gui")
@@ -35,6 +35,12 @@ function Menu:enter(params)
   self.activeField = "name"
   self.lastClick = 0
   self.time = 0
+  self.joinAddress = options.values.lastServer
+  self.joinName = options.values.playerName
+  if params.message then
+    self.page = "message"
+    self.messageText = params.message
+  end
   love.mouse.setRelativeMode(false)
   love.mouse.setVisible(true)
   love.keyboard.setKeyRepeat(true)
@@ -86,7 +92,7 @@ function Menu:drawTitle()
   gui.text(self.splash, -sw / 2, 0, { 1, 1, 0 })
   g.pop()
   self.buttons = {}
-  local labels = { "Jeden gracz", "Opcje...", "Wyjdz z gry" }
+  local labels = { "Jeden gracz", "Gra wieloosobowa", "Opcje...", "Wyjdz z gry" }
   for i, l in ipairs(labels) do
     local b = { x = math.floor(w / 2 - 100 * s), y = math.floor(h * 0.45 + (i - 1) * 24 * s),
       w = 200 * s, h = 20 * s, action = i }
@@ -167,6 +173,47 @@ function Menu:drawCreate()
   for _, b in ipairs(self.buttons) do gui.button(b.label, b.x, b.y, b.w, b.h, b.dis) end
 end
 
+function Menu:drawJoin()
+  local g = love.graphics
+  local w, h = g.getDimensions()
+  local s = gui.scale
+  gui.text("Gra wieloosobowa (LAN)", 0, 16 * s, nil, 1.2, "center", w)
+  local fx, fw = math.floor(w / 2 - 100 * s), 200 * s
+  gui.text("Adres gospodarza (IP z jego menu pauzy)", fx, 44 * s, { 0.65, 0.65, 0.65 })
+  self.addrField = { x = fx, y = 54 * s, w = fw, h = 20 * s }
+  gui.textField(self.joinAddress, fx, 54 * s, fw, 20 * s, self.activeField == "addr", "np. 192.168.1.10")
+  gui.text("Twoj nick", fx, 82 * s, { 0.65, 0.65, 0.65 })
+  self.nickField = { x = fx, y = 92 * s, w = fw, h = 20 * s }
+  gui.textField(self.joinName, fx, 92 * s, fw, 20 * s, self.activeField == "nick", "Gracz")
+  local info = {
+    "Gospodarz: wejdz do swiata, Esc -> \"Otworz w sieci LAN\".",
+    "Na tym samym komputerze wpisz: localhost",
+    "Windows moze zapytac o zapore - bez admina wybierz siec prywatna;",
+    "jesli zapora blokuje, gospodarzem niech bedzie inny komputer.",
+  }
+  for i, line in ipairs(info) do
+    gui.text(line, 0, 122 * s + (i - 1) * 10 * s, { 0.6, 0.6, 0.6 }, 0.85, "center", w)
+  end
+  self.buttons = {
+    { x = math.floor(w / 2 - 154 * s), y = h - 30 * s, w = 150 * s, h = 20 * s, action = "join",
+      label = "Dolacz", dis = self.joinAddress:gsub("%s", "") == "" },
+    { x = math.floor(w / 2 + 4 * s), y = h - 30 * s, w = 150 * s, h = 20 * s, action = "back", label = "Anuluj" },
+  }
+  for _, b in ipairs(self.buttons) do gui.button(b.label, b.x, b.y, b.w, b.h, b.dis) end
+end
+
+function Menu:drawMessage()
+  local g = love.graphics
+  local w, h = g.getDimensions()
+  local s = gui.scale
+  gui.text("Rozlaczono", 0, h / 3, nil, 1.2, "center", w)
+  gui.text(self.messageText or "", 0, h / 3 + 20 * s, { 0.7, 0.7, 0.7 }, 1, "center", w)
+  self.buttons = {
+    { x = math.floor(w / 2 - 100 * s), y = h / 2 + 10 * s, w = 200 * s, h = 20 * s, action = "back", label = "Wroc do menu" },
+  }
+  for _, b in ipairs(self.buttons) do gui.button(b.label, b.x, b.y, b.w, b.h) end
+end
+
 function Menu:drawConfirm()
   local g = love.graphics
   local w, h = g.getDimensions()
@@ -192,7 +239,9 @@ function Menu:draw()
   if self.page == "title" then self:drawTitle()
   elseif self.page == "worlds" then self:drawWorlds()
   elseif self.page == "create" then self:drawCreate()
-  elseif self.page == "confirm" then self:drawConfirm() end
+  elseif self.page == "confirm" then self:drawConfirm()
+  elseif self.page == "join" then self:drawJoin()
+  elseif self.page == "message" then self:drawMessage() end
 end
 
 -- ---------------------------------------------------------------------------
@@ -211,6 +260,9 @@ function Menu:action(a)
       self.selected = #self.worlds > 0 and 1 or nil
       self.page = "worlds"
     elseif a == 2 then
+      self.activeField = "addr"
+      self.page = "join"
+    elseif a == 3 then
       self.optionsScreen = menus.options(function(key, value)
         if key == "guiScale" then gui.userScale = value; gui.updateScale() end
         if key == "volume" then sound.setVolume(value) end
@@ -219,9 +271,23 @@ function Menu:action(a)
         self.page = "title"
       end, function() self:background() end)
       self.page = "options"
-    elseif a == 3 then
+    elseif a == 4 then
       love.event.quit()
     end
+  elseif self.page == "join" then
+    if a == "join" then
+      local addr = self.joinAddress:gsub("%s", "")
+      if addr == "" then return end
+      local name = require("core.net.protocol").cleanName(self.joinName)
+      options.values.lastServer = addr
+      options.values.playerName = name
+      options.save(fs)
+      self.manager:switch(require("states.connect"), { manager = self.manager, address = addr, name = name })
+    elseif a == "back" then
+      self.page = "title"
+    end
+  elseif self.page == "message" then
+    self.page = "title"
   elseif self.page == "worlds" then
     if a == "play" and self.selected then
       self:startWorld({ folder = self.worlds[self.selected].folder })
@@ -265,6 +331,10 @@ function Menu:mousepressed(x, y, button)
     if hit(self.nameField, x, y) then self.activeField = "name" end
     if hit(self.seedField, x, y) then self.activeField = "seed" end
   end
+  if self.page == "join" then
+    if hit(self.addrField, x, y) then self.activeField = "addr" end
+    if hit(self.nickField, x, y) then self.activeField = "nick" end
+  end
   if self.page == "worlds" and self.rows then
     for i, r in ipairs(self.rows) do
       if hit(r, x, y) then
@@ -296,6 +366,11 @@ function Menu:mousereleased(x, y, b)
 end
 
 function Menu:textinput(t)
+  if self.page == "join" then
+    if self.activeField == "addr" and #self.joinAddress < 40 then self.joinAddress = self.joinAddress .. t
+    elseif self.activeField == "nick" and #self.joinName < 16 then self.joinName = self.joinName .. t end
+    return
+  end
   if self.page ~= "create" then return end
   if self.activeField == "name" and #self.newName < 32 then self.newName = self.newName .. t
   elseif self.activeField == "seed" and #self.newSeed < 32 then self.newSeed = self.newSeed .. t end
@@ -304,6 +379,19 @@ end
 function Menu:keypressed(key)
   if self.page == "options" then
     self.optionsScreen:keypressed(key)
+    return
+  end
+  if self.page == "join" then
+    if key == "backspace" then
+      if self.activeField == "addr" then self.joinAddress = self.joinAddress:sub(1, -2)
+      else self.joinName = self.joinName:sub(1, -2) end
+    elseif key == "tab" then
+      self.activeField = self.activeField == "addr" and "nick" or "addr"
+    elseif key == "return" then
+      self:action("join")
+    elseif key == "escape" then
+      self.page = "title"
+    end
     return
   end
   if self.page == "create" then

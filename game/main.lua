@@ -31,17 +31,28 @@ function love.load(args)
   --   --creative        to samo w trybie kreatywnym
   --   --boot            ekran testowy z Fazy 0
   --   --seed=12345      ziarno dla --play
+  --   --lan             z --play/--creative: od razu otwiera świat w sieci LAN
+  --   --join=adres      dołącza do gry w sieci (np. --join=localhost)
+  --   --name=Nick       nick w grze wieloosobowej
   local mode, seed = "menu", 12345
+  local lan, join, name = false, nil, nil
   for _, a in ipairs(args or {}) do
     if a == "--play" then mode = "play"
     elseif a == "--creative" then mode = "creative"
     elseif a == "--boot" then mode = "boot"
+    elseif a == "--lan" then lan = true
+    elseif a:match("^%-%-join=") then join = a:match("=(.+)$")
+    elseif a:match("^%-%-name=") then name = a:match("=(.+)$")
     elseif a:match("^%-%-seed=") then seed = tonumber(a:match("=(%-?%d+)")) or seed end
   end
-  if mode == "boot" then
+  if join then
+    states:switch(require("states.connect"), { manager = states, address = join,
+      name = name or require("core.options").values.playerName })
+  elseif mode == "boot" then
     states:switch(require("states.boot"))
   elseif mode == "play" or mode == "creative" then
-    states:switch(require("states.loading"), { manager = states, temporary = true,
+    states:switch(require("states.loading"), { manager = states, temporary = true, openLan = lan,
+      hostName = name,
       create = { name = "Test", seed = seed, gameMode = mode == "creative" and "creative" or "survival" } })
   else
     states:switch(require("states.menu"), { manager = states })
@@ -106,6 +117,7 @@ end
 -- Zamknięcie okna: zapis świata
 function love.quit()
   states:call("save")
+  states:call("closeNet")
   options.save(fs)
   return false
 end

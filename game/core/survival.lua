@@ -44,6 +44,7 @@ function S.xpForLevel(level)
 end
 
 function S.addXp(game, n)
+  if game.remoteCtx then return game.remoteCtx.server:xpTo(game.remoteCtx, n) end
   game.xpTotal = game.xpTotal + n
   game.xpPoints = game.xpPoints + n
   while game.xpPoints >= S.xpForLevel(game.xpLevel) do
@@ -168,6 +169,8 @@ local UNBLOCKABLE = { starve = true, void = true, poison = true, drown = true,
 -- source: "fall", "lava", "fire", "drown", "starve", "cactus", "void", "mob",
 --         "arrow", "explosion", "poison", "suffocate"
 function S.damage(game, amount, source, attacker)
+  -- serwer: obrażenia dla gościa (podmieniony kontekst) idą przez sieć
+  if game.remoteCtx then return game.remoteCtx.server:hurt(game.remoteCtx, amount, source, attacker) end
   if game.dead then return false end
   if game.player.gameMode == "creative" and source ~= "void" then return false end
   if amount <= 0 then return false end

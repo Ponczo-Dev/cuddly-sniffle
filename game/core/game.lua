@@ -45,6 +45,7 @@ function M.new(opts)
   self.hardcore = opts.hardcore or false
   self.opts = opts
   self.saveFolder = opts.saveFolder
+  self.remote = opts.remote or false -- gość w grze sieciowej (świat u gospodarza)
   self.pendingAnimalChunks = {}
   self.animalRng = Rng.new(Rng.hash(self.seed, 555))
   self.dimension = "overworld"
@@ -99,7 +100,14 @@ function Game:makeWorld(dim)
     generator = function(chunk) gen:generate(chunk) end
   else
     generator = opts.generator
-    if generator == nil then
+    if opts.remote then
+      -- gość w grze sieciowej: teren przychodzi od gospodarza, generator tylko do biomów
+      local gen = worldgen.new(self.seed)
+      self.gen = gen
+      self.overworldBiome = function(x, z) return (gen:biome(x, z)) end
+      self.biomeAt = self.overworldBiome
+      generator = false
+    elseif generator == nil then
       local gen = worldgen.new(self.seed)
       self.gen = gen
       self.overworldBiome = function(x, z) return (gen:biome(x, z)) end
@@ -119,6 +127,7 @@ function Game:makeWorld(dim)
     end
   end
   local onCreate = function(chunk, fromDisk)
+    if opts.remote then return end
     if fromDisk then
       save.restoreEntities(self, chunk)
     elseif dim == "overworld" and self.gen and self.animalRng:chance(0.12) then
@@ -250,6 +259,8 @@ end
 -- Dodaje do ekwipunku (hotbar najpierw). Zwraca liczbę, która się nie zmieściła.
 function Game:addToInventory(stack)
   local copy = { id = stack.id, count = stack.count, damage = stack.damage or 0 }
+  -- serwer: przedmiot podnosi gość (podmieniony kontekst gracza)
+  if self.remoteCtx then return self.remoteCtx.server:giveTo(self.remoteCtx, copy) end
   return self.inventory:add(copy)
 end
 
@@ -264,6 +275,7 @@ end
 
 -- Wyrzuca stos w świecie z lekkim losowym rozrzutem
 function Game:dropStack(x, y, z, stack)
+  if self.suppressDrops then return nil end
   local rng = self.rng
   local e = entities.newItem(x, y, z, stack,
     (rng:next() - 0.5) * 0.2, 0.2, (rng:next() - 0.5) * 0.2)
@@ -295,6 +307,7 @@ function Game:throwStack(stack)
 end
 
 function Game:spawnXp(x, y, z, value)
+  if self.suppressDrops then return end
   for _, v in ipairs(entities.splitXp(value)) do
     self.entities:add(entities.newXp(x, y, z, v))
   end
@@ -806,6 +819,7 @@ end
 -- Losowe ticki bloków w chunkach wokół gracza
 -- ---------------------------------------------------------------------------
 function Game:randomTicks()
+  if self.remote then return end
   local world = self.world
   local rng = self.rng
   local p = self.player
@@ -873,6 +887,10 @@ end
 -- Spanie w łóżku
 -- ---------------------------------------------------------------------------
 function Game:trySleep(x, y, z, meta)
+  if self.remote then
+    self:emit("message", "Spac moze tylko gospodarz gry")
+    return
+  end
   if self.dimension == "nether" then
     self.world:setBlock(x, y, z, 0, 0)
     self:explode(x + 0.5, y + 0.5, z + 0.5, 5)
@@ -981,8 +999,13 @@ function Game:tick()
   local p = self.player
   local inp = self.input
 
+  local remote = self.remote
   if not self.dead then
-    if self.sleeping then
+    if remote and not self.world:isLoadedAt(floor(p.x), floor(p.z)) then
+      -- gość czeka na teren od gospodarza
+      p.vx, p.vy, p.vz = 0, 0, 0
+      p.prevX, p.prevY, p.prevZ = p.x, p.y, p.z
+    elseif self.sleeping then
       self:tickSleep()
     elseif p.riding then
       require("core.vehicles").tickRider(self)
@@ -1003,11 +1026,19 @@ function Game:tick()
       p:tick(self.world, self.survival.canSprint(self))
     end
     self:tickInteraction()
-    require("core.portal").tick(self)
+    if not remote then require("core.portal").tick(self) end
   end
 
   self.survival.tick(self)
   self.entities:tick()
+  if remote then
+    -- świat symuluje gospodarz; tu tylko płynna zmiana siły deszczu
+    local w = self.weather
+    local target = w.raining and 1 or 0
+    if w.strength < target then w.strength = math.min(target, w.strength + 0.01)
+    elseif w.strength > target then w.strength = math.max(target, w.strength - 0.01) end
+    return
+  end
   require("core.vehicles").followVehicle(self)
   -- płyty naciskowe pod graczem i bytami
   local redstone = require("core.redstone")

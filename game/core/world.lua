@@ -173,12 +173,17 @@ function World:lightChunk(chunk)
   chunk.dirty = true
 end
 
--- Zwalnia chunki dalej niż radius od środka
-function World:unloadFar(centerCx, centerCz, radius)
+-- Zwalnia chunki dalej niż radius od środka.
+-- keep: opcjonalna lista { cx, cz, r } obszarów, których nie zwalniamy (goście w sieci)
+function World:unloadFar(centerCx, centerCz, radius, keep)
   local toRemove = {}
   for _, c in pairs(self.chunks) do
     if math.abs(c.cx - centerCx) > radius or math.abs(c.cz - centerCz) > radius then
-      toRemove[#toRemove + 1] = c
+      local kept = false
+      for _, k in ipairs(keep or {}) do
+        if math.abs(c.cx - k[1]) <= k[3] and math.abs(c.cz - k[2]) <= k[3] then kept = true break end
+      end
+      if not kept then toRemove[#toRemove + 1] = c end
     end
   end
   for _, c in ipairs(toRemove) do

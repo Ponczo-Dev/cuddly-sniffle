@@ -80,10 +80,18 @@ function Play:enter(params)
   gui.updateScale()
   sound.setVolume(options.values.volume)
   if game.dead then self:openScreen(menus.death(game, function(a) self:deathAction(a) end)) end
-  hud.message("Witaj w swiecie '" .. game.name .. "'! Wpisz /help w czacie (T)", { 1, 1, 0.5 })
+  if game.netClient then
+    hud.message("Polaczono z gra gracza " .. (game.netClient.hostName or "?") .. ". /list - lista graczy",
+      { 1, 1, 0.5 })
+  else
+    hud.message("Witaj w swiecie '" .. game.name .. "'! Wpisz /help w czacie (T)", { 1, 1, 0.5 })
+  end
+  if params.hostName then options.values.playerName = params.hostName end
+  if params.openLan then self:openLan() end
 end
 
 function Play:leave()
+  self:closeNet()
   love.mouse.setRelativeMode(false)
   love.mouse.setVisible(true)
   sound.stopAll()
@@ -95,6 +103,9 @@ end
 -- ---------------------------------------------------------------------------
 function Play:openScreen(screen)
   if self.screen and self.screen.close then self.screen:close() end
+  if self.screen and self.screen.watchingTiles and self.game.netClient then
+    self.game.netClient:unwatchTiles()
+  end
   self.screen = screen
   love.mouse.setRelativeMode(screen == nil)
   love.mouse.setVisible(screen ~= nil)
@@ -108,15 +119,84 @@ function Play:closeScreen()
 end
 
 function Play:openPause()
+  local game = self.game
+  local kind, info
+  if game.netServer then
+    local srv = game.netServer
+    kind = "host"
+    info = "Siec LAN: " .. (self.lanAddress or "?") .. ":" .. srv.port .. "\nGraczy: " .. (srv:count() + 1)
+  elseif game.netClient then
+    kind = "client"
+    info = "Polaczono z gra gracza " .. (game.netClient.hostName or "?")
+  end
   self:openScreen(menus.pause(function(action)
     if action == "resume" then
       self:closeScreen()
     elseif action == "options" then
       self:openOptions()
+    elseif action == "lan" then
+      self:openLan()
     elseif action == "quit" then
       self:saveAndQuit()
     end
-  end))
+  end, kind, info))
+end
+
+-- ---------------------------------------------------------------------------
+-- Gra wieloosobowa
+-- ---------------------------------------------------------------------------
+-- Adres IP komputera w sieci lokalnej (do podania znajomym)
+local function localAddress()
+  local ok, socket = pcall(require, "socket")
+  if not ok or not socket then return "localhost" end
+  local udp = socket.udp()
+  if not udp then return "localhost" end
+  -- nic nie jest wysyłane: setpeername tylko wybiera kartę sieciową
+  udp:setpeername("192.168.255.255", 9)
+  local ip = udp:getsockname()
+  udp:close()
+  if not ip or ip == "0.0.0.0" then return "localhost" end
+  return ip
+end
+
+function Play:openLan()
+  local game = self.game
+  if game.dimension ~= "overworld" then
+    hud.message("Siec LAN mozna otworzyc tylko w zwyklym swiecie", { 1, 0.5, 0.5 })
+    self:closeScreen()
+    return
+  end
+  local transport = require("core.net.transport")
+  local protocol = require("core.net.protocol")
+  local t, err = transport.enetServer(protocol.PORT, protocol.MAX_PLAYERS)
+  if not t then
+    hud.message("Nie udalo sie otworzyc gry w sieci: " .. tostring(err), { 1, 0.5, 0.5 })
+    self:closeScreen()
+    return
+  end
+  require("core.net.server").start(game, t, { name = options.values.playerName, port = protocol.PORT })
+  self.lanAddress = localAddress()
+  hud.message("Swiat otwarty w sieci LAN: " .. self.lanAddress .. " (port " .. protocol.PORT .. ")",
+    { 0.6, 1, 0.6 })
+  hud.message("Znajomi: Gra wieloosobowa -> wpisz ten adres", { 0.6, 1, 0.6 })
+  self:closeScreen()
+end
+
+function Play:closeNet()
+  local game = self.game
+  if not game then return end
+  if game.netServer then game.netServer:stop() end
+  if game.netClient then game.netClient:close() end
+end
+
+-- Utrata połączenia z gospodarzem: powrót do menu z komunikatem
+function Play:netLost(message)
+  if self.manager then
+    self.manager:switch(require("states.menu"), { manager = self.manager,
+      message = message or "Rozlaczono z serwerem" })
+  else
+    love.event.quit()
+  end
 end
 
 function Play:openOptions()
@@ -151,6 +231,9 @@ function Play:deathAction(action)
 end
 
 function Play:save()
+  if self.game.netServer then
+    for _, ctx in pairs(self.game.netServer.peers) do self.game.netServer:savePlayer(ctx) end
+  end
   if not self.folder then return end
   local n = self.game:saveAll()
   options.save(fs)
@@ -180,6 +263,17 @@ function Play:openContainer(kind, x, y, z)
     end
   else
     self:openScreen(ContainerScreen.new(game, kind, { x, y, z }))
+    -- gość: zawartość skrzyni/pieca jest u gospodarza
+    if game.netClient and (kind == "chest" or kind == "furnace") then
+      local list = { { x, y, z } }
+      if kind == "chest" then
+        for _, d in ipairs({ { -1, 0 }, { 1, 0 }, { 0, -1 }, { 0, 1 } }) do
+          if game.world:getBlock(x + d[1], y, z + d[2]) == 54 then list[2] = { x + d[1], y, z + d[2] } break end
+        end
+      end
+      game.netClient:watchTiles(list)
+      self.screen.watchingTiles = true
+    end
   end
 end
 
@@ -332,6 +426,10 @@ function Play:chat(text)
   if text:sub(1, 1) == "/" then
     local reply = commands.run(game, text)
     for line in reply:gmatch("[^\n]+") do hud.message(line, { 0.75, 0.75, 0.75 }) end
+  elseif game.netClient then
+    game.netClient:chat(text)
+  elseif game.netServer then
+    game.netServer:announce("<" .. game.netServer.hostName .. "> " .. text)
   else
     hud.message("<Gracz> " .. text)
   end
@@ -352,10 +450,22 @@ function Play:tick()
   local game = self.game
   self.ticks = self.ticks + 1
   self:readInput()
-  local paused = self.screen and self.screen.pausesGame
-  if paused then return end -- pauza zatrzymuje świat (gra jednoosobowa)
+  local server, client = game.netServer, game.netClient
+  if server then server:poll() end
+  if client then
+    client:poll()
+    if client.state == "closed" then
+      self:netLost(client.error)
+      return
+    end
+  end
+  -- pauza zatrzymuje świat tylko w grze jednoosobowej
+  local paused = self.screen and self.screen.pausesGame and not client
+    and not (server and server:count() > 0)
+  if paused then return end
 
-  game:tick()
+  if client then client:tick() else game:tick() end
+  if server then server:tick() end
   particles.update(game.world)
   self:handleEvents()
 
@@ -474,6 +584,8 @@ function Play:handleEvents()
       self:openContainer(ev[2], ev[3], ev[4], ev[5])
     elseif kind == "message" then
       hud.message(ev[2], { 1, 1, 0.6 })
+    elseif kind == "chat" then
+      hud.message(ev[2])
     elseif kind == "death" then
       game.stats.lastScore = game.xpTotal
       self:openScreen(menus.death(game, function(a) self:deathAction(a) end))
@@ -502,17 +614,28 @@ function Play:update(dt, alpha)
   local start = love.timer.getTime()
   local budget = 0.006
   local pcx, pcz = floor(game.player.x / 16), floor(game.player.z / 16)
-  repeat
-    -- najpierw oświetlanie gotowych chunków, potem generowanie nowych
-    local _, lit = game.world:updateLoading(pcx, pcz, game.renderDistance, 0, 1)
-    local gen = 0
-    if love.timer.getTime() - start < budget then
-      gen = game.world:updateLoading(pcx, pcz, game.renderDistance, 1, 0)
-    end
-  until (gen == 0 and lit == 0) or love.timer.getTime() - start > budget
   local p = game.player
-  local removed = game.world:unloadFar(floor(p.x / 16), floor(p.z / 16), game.renderDistance + 4)
-  if removed > 0 then game.entities:removeOutside(game.world) end
+  if game.netClient then
+    -- gość: teren przychodzi z sieci, tu tylko światło i zwalnianie
+    game.netClient:updateWorld(start + budget, love.timer.getTime)
+  else
+    repeat
+      -- najpierw oświetlanie gotowych chunków, potem generowanie nowych
+      local _, lit = game.world:updateLoading(pcx, pcz, game.renderDistance, 0, 1)
+      local gen = 0
+      if love.timer.getTime() - start < budget then
+        gen = game.world:updateLoading(pcx, pcz, game.renderDistance, 1, 0)
+      end
+    until (gen == 0 and lit == 0) or love.timer.getTime() - start > budget
+    local keep
+    if game.netServer then
+      -- teren wokół gości generuje i trzyma gospodarz
+      game.netServer:updateLoading(love.timer.getTime() + budget, love.timer.getTime)
+      keep = game.netServer:keepAreas()
+    end
+    local removed = game.world:unloadFar(floor(p.x / 16), floor(p.z / 16), game.renderDistance + 4, keep)
+    if removed > 0 then game.entities:removeOutside(game.world) end
+  end
   self.renderer:update(p.x, p.z, game.renderDistance, 0.008)
 
   -- gracz utknął w niezaładowanym terenie (po odrodzeniu): przenieś na powierzchnię
@@ -626,7 +749,7 @@ function Play:drawEntities(alpha)
         if require("core.frustum").boxVisible(cam.frustum, x - hw, y - 0.5, z - hw, x + hw,
           y + (e.height or 1) + 0.5, z + hw) then
           local light = self:entityLight(x, y + (e.height or 0.5) * 0.5, z)
-          if e.type == "mob" then
+          if e.type == "mob" or e.type == "player" then
             models.drawMob(e, alpha, light, time)
           elseif e.type == "item" then
             models.drawItem(e, alpha, light, time, cam.yaw)
@@ -796,7 +919,7 @@ function Play:draw(alpha)
   local g = love.graphics
   local w, h = g.getDimensions()
   alpha = alpha or 1
-  if self.screen and self.screen.pausesGame then alpha = 1 end
+  if self.screen and self.screen.pausesGame and not game.net then alpha = 1 end
   self:setupCamera(alpha)
   local cam = self.camera
   local p = game.player
@@ -884,6 +1007,7 @@ function Play:draw(alpha)
   end
   g.setColor(1, 1, 1, 1)
 
+  self:drawNameTags(alpha)
   if self.showHud and not game.dead then
     hud.draw(game, alpha, { hideCrosshair = self.screen ~= nil or self.thirdPerson > 0,
       chatOpen = self.screen and self.screen.text ~= nil })
@@ -893,6 +1017,32 @@ function Play:draw(alpha)
     gui.text("FPS: " .. love.timer.getFPS(), 4, 4, { 1, 1, 0.4 })
   end
   if self.screen then self.screen:draw() end
+end
+
+-- Nicki nad głowami innych graczy (gra wieloosobowa)
+function Play:drawNameTags(alpha)
+  local game = self.game
+  if not game.net or not self.showHud then return end
+  local g = love.graphics
+  local w, h = g.getDimensions()
+  local cam = self.camera
+  for _, e in ipairs(game.entities.list) do
+    if e.type == "player" and e.name and not e.dead then
+      local x = e.prevX + (e.x - e.prevX) * alpha
+      local y = e.prevY + (e.y - e.prevY) * alpha + 2.1
+      local z = e.prevZ + (e.z - e.prevZ) * alpha
+      local d = math.sqrt((x - cam.x) ^ 2 + (y - cam.y) ^ 2 + (z - cam.z) ^ 2)
+      local sx, sy = cam:project(x, y, z, w, h)
+      if sx and d < 64 then
+        local mult = math.max(0.7, math.min(1.4, 8 / math.max(d, 1)))
+        local tw = gui.textWidth(e.name, mult)
+        g.setColor(0, 0, 0, 0.4)
+        g.rectangle("fill", sx - tw / 2 - 2, sy - 2, tw + 4, 10 * gui.scale * mult + 2)
+        gui.text(e.name, sx - tw / 2, sy, e.sneaking and { 0.7, 0.7, 0.7 } or { 1, 1, 1 }, mult)
+      end
+    end
+  end
+  g.setColor(1, 1, 1, 1)
 end
 
 function Play:debugInfo()

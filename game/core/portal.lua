@@ -165,6 +165,10 @@ function P.tick(game)
 end
 
 function P.travel(game)
+  if game.net then
+    game:emit("message", "Portale nie dzialaja w grze wieloosobowej")
+    return false
+  end
   local p = game.player
   local toNether = game.dimension ~= "nether"
   local scale = toNether and 1 / 8 or 8

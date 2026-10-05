@@ -23,6 +23,7 @@ local files = {
   "test_gameplay",
   "test_redstone",
   "test_nether",
+  "test_net",
 }
 
 local jit = rawget(_G, "jit")

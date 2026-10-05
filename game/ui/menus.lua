@@ -30,10 +30,19 @@ local function hit(b, x, y) return x >= b.x and x < b.x + b.w and y >= b.y and y
 local Pause = {}
 Pause.__index = Pause
 
-function M.pause(onAction)
-  return setmetatable({ onAction = onAction, pausesGame = true,
-    labels = { "Wroc do gry", "Opcje...", "Zapisz i wyjdz do menu" },
-    actions = { "resume", "options", "quit" } }, Pause)
+-- net: nil (gra jednoosobowa), "host" (serwer LAN działa), "client" (gość)
+-- info: dodatkowa linia pod tytułem (np. adres serwera)
+function M.pause(onAction, net, info)
+  local labels = { "Wroc do gry", "Opcje..." }
+  local actions = { "resume", "options" }
+  if not net then
+    labels[#labels + 1] = "Otworz w sieci LAN"
+    actions[#actions + 1] = "lan"
+  end
+  labels[#labels + 1] = net == "client" and "Rozlacz" or "Zapisz i wyjdz do menu"
+  actions[#actions + 1] = "quit"
+  return setmetatable({ onAction = onAction, pausesGame = true, labels = labels, actions = actions,
+    info = info }, Pause)
 end
 
 function Pause:draw()
@@ -44,6 +53,13 @@ function Pause:draw()
   g.rectangle("fill", 0, 0, w, h)
   local s = gui.scale
   gui.text("Menu gry", 0, h / 2 - 70 * s, nil, 1.3, "center", w)
+  if self.info then
+    local y = h / 2 - 56 * s
+    for line in self.info:gmatch("[^\n]+") do
+      gui.text(line, 0, y, { 0.6, 1, 0.6 }, 0.9, "center", w)
+      y = y + 10 * s
+    end
+  end
   self.buttons = centerButtons(#self.labels, 200, 20, 4, h / 2 - 40 * s)
   for i, b in ipairs(self.buttons) do gui.button(self.labels[i], b.x, b.y, b.w, b.h) end
   gui.text("WSAD - ruch, spacja - skok, shift - kucanie, ctrl - sprint, E - ekwipunek",
