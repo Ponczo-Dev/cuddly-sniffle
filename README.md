@@ -5,7 +5,7 @@ Klon Minecrafta w stylu Java Edition Beta 1.0–1.8, napisany w Lua na framework
 Wszystkie tekstury, modele i dźwięki są generowane w kodzie, więc nie potrzeba żadnych plików graficznych.
 Plan projektu i zasady pracy z AI są w [`MASTER_PROMPT.md`](MASTER_PROMPT.md).
 
-**Stan: fazy 0–10 z planu ukończone + rozszerzenia: redstone i tłoki, tory i wagoniki, łódki, płotki, Nether z portalem, opuszczone kopalnie i wioski, gra wieloosobowa w sieci LAN.**
+**Stan: fazy 0–10 z planu ukończone + rozszerzenia: redstone i tłoki, tory i wagoniki, łódki, płotki, Nether z portalem, opuszczone kopalnie i wioski, gra wieloosobowa w sieci LAN, zaklinanie, mikstury, mapy, twierdze i End ze smokiem.**
 
 ## Instalacja (jednorazowo, bez admina)
 
@@ -88,6 +88,22 @@ przeciąganie ze stosem (rozłożenie po slotach), Q nad slotem (wyrzuć), 1–9
 - **Struktury:** lochy ze spawnerem, opuszczone kopalnie (korytarze, podpory, tory, pajęczyny, skrzynie),
   wioski (puste jak w Beta 1.8: studnia, drogi, domy, kuźnia ze skrzynią, pola, biblioteka, wieża).
   Komenda `/locate village` albo `/locate mineshaft` pokazuje najbliższą.
+- **Zaklinanie:** stół do zaklinania (książka, 2 diamenty, 4 obsydian) otoczony biblioteczkami (do 15).
+  Trzy oferty za poziomy doświadczenia, 20 zaklęć z działającymi efektami: Ochrona (i przed ogniem,
+  wybuchami, pociskami), Powolne opadanie, Oddychanie, Wydajność pod wodą, Ostrość, Pogromca nieumarłych,
+  Zmora stawonogów, Odrzut, Zaklęty ogień, Grabież, Wydajność, Jedwabny dotyk, Niezniszczalność,
+  Szczęście, Moc, Uderzenie, Płomień, Nieskończoność. Zaklęte przedmioty mają fioletową poświatę.
+- **Mikstury:** statyw alchemiczny (płomienna różdżka i bruk), szklane butelki, kocioł. Brodawki netherowe
+  rosną na piasku dusz w Netherze, płomienne różdżki wypadają z płomyków (nowy mob Netheru). Mikstury:
+  regeneracji, szybkości, odporności na ogień, leczenia, siły, trucizny, osłabienia, spowolnienia, krzywdy.
+  Czerwony pył je przedłuża, pył jasnogłazu wzmacnia (II), proch robi z nich rzucane. Efekty widać w HUD.
+- **Mapy:** kompas (4 żelaza + czerwony pył) i pusta mapa (8 papieru + kompas). Mapa w ręce odkrywa teren
+  128×128 bloków: kolory bloków, cienie wysokości, głębokość wody, strzałka gracza.
+- **Twierdze i End:** 3 twierdze na świat, 400–700 bloków od środka (`/locate stronghold`). Korytarze
+  z kamiennych cegieł, biblioteka, fontanna, cele, skrzynie i sala z portalem nad lawą. Oko Endu
+  (perła Endu + płomienny proszek) rzucone wskazuje kierunek, a włożone do 12 ramek otwiera portal.
+  End: wyspa z kamienia Endu, 10 obsydianowych kolumn z kryształami leczącymi smoka i smok Endu
+  (szarżuje, niszczy bloki, ma 200 punktów życia). Po zwycięstwie pojawia się portal powrotny i jajo smoka.
 - **Dźwięki:** kopanie i kroki zależne od materiału, głosy mobów, wybuchy, deszcz. Wszystkie wygenerowane w kodzie.
 
 ## Gra wieloosobowa (LAN)
@@ -116,9 +132,10 @@ Gra w dwóch oknach na jednym komputerze (`localhost`) działa zawsze.
 
 `/help`, `/time set day|night|<liczba>`, `/gamemode survival|creative`, `/give <nazwa|id> [ilość]`,
 `/tp <x> <y> <z>`, `/weather clear|rain|thunder`, `/summon <mob>`, `/difficulty 0-3`,
-`/xp <ilość>`, `/locate village|mineshaft`, `/list`, `/seed`, `/kill`, `/heal`, `/clear`, `/spawnpoint`.
+`/xp <ilość>`, `/locate village|mineshaft|stronghold`, `/list`, `/seed`, `/kill`, `/heal`, `/clear`, `/spawnpoint`.
 
-Przykład: `/give diamond_pickaxe`, `/give torch 64`, `/summon creeper`, `/give piston 4`, `/give rail 64`, `/give obsidian 10`, `/give flint_and_steel`.
+Przykład: `/give diamond_pickaxe`, `/give torch 64`, `/summon creeper`, `/give piston 4`, `/give rail 64`, `/give obsidian 10`, `/give flint_and_steel`,
+`/give enchanting_table`, `/give bookshelf 15`, `/xp 1000`, `/give potion 1 13` (mikstura leczenia), `/give eye_of_ender 12`, `/give empty_map`.
 
 ## Parametry uruchomienia (do testów)
 
@@ -158,7 +175,9 @@ game\
     blocks.lua items.lua recipes.lua   rejestry bloków, przedmiotów i receptur
     blocklogic.lua       zachowania bloków (ciecze, rośliny, drzwi, łóżka...)
     redstone.lua rails.lua vehicles.lua   redstone i tłoki, tory, wagonik i łódka
-    nethergen.lua portal.lua structures.lua   Nether, portal, kopalnie i wioski
+    nethergen.lua portal.lua structures.lua   Nether, portal, kopalnie, wioski i twierdze
+    enchant.lua potions.lua maps.lua   zaklinanie, mikstury, mapy
+    endgen.lua endportal.lua dragon.lua   End, portal Endu, smok i kryształy
     player.lua physics.lua raycast.lua   ruch i kolizje
     survival.lua mobs.lua entities.lua   zdrowie/głód, moby, byty, wybuchy
     inventory.lua container.lua furnace.lua   ekwipunek i okna

@@ -68,6 +68,8 @@ M.DEFS = {
   blaze = { label = "Plomyk", w = 0.6, h = 1.8, health = 20, speed = 0.06, hostile = true, flying = true,
     xp = { 10, 10 }, nether = true, fireImmune = true,
     drops = function(rng) return { { 369, rng:int(0, 1) } } end },
+  dragon = { label = "Smok Endu", w = 6, h = 6, health = 200, speed = 0.6, hostile = true, flying = true,
+    fireImmune = true, noclip = true, boss = true, xp = { 0, 0 }, drops = function() return {} end },
   enderman = { label = "Enderman", w = 0.6, h = 2.9, health = 40, speed = 0.15, hostile = true,
     neutral = true, damage = { 4, 7, 10 }, teleports = true, xp = { 5, 5 },
     drops = function(rng) return { { 368, rng:int(0, 1) } } end },
@@ -191,6 +193,11 @@ end
 -- Fizyka moba (grawitacja, woda, wspinanie pająka)
 local function physicsStep(game, e)
   local world = game.world
+  if e.def.noclip then
+    require("core.dragon").move(e)
+    e.vx, e.vy, e.vz = e.vx * 0.98, e.vy * 0.98, e.vz * 0.98
+    return
+  end
   if e.def.flying and e.deathTime == 0 then
     physics.move(world, e, e.vx, e.vy, e.vz, false)
     e.vx, e.vy, e.vz = e.vx * 0.9, e.vy * 0.9, e.vz * 0.9
@@ -322,6 +329,10 @@ end
 
 function M.playerAttack(game, e)
   local p = game.player
+  if e.isCrystal then
+    require("core.dragon").destroyCrystal(game, e)
+    return
+  end
   if e.isVehicle then
     require("core.vehicles").attack(game, e)
     return
@@ -364,7 +375,8 @@ function M.pickEntity(game, maxDist)
   local lx, ly, lz = p:lookVector()
   local best, bestD = nil, maxDist
   for _, e in ipairs(game.entities.list) do
-    if (e.isMob and not e.dead and e.health > 0) or (e.isVehicle and not e.dead and e ~= p.riding) then
+    if (e.isMob and not e.dead and e.health > 0) or (e.isVehicle and not e.dead and e ~= p.riding)
+      or (e.isCrystal and not e.dead) then
       local hw = e.width / 2 + 0.1
       local d = raycast.rayBox(ex, ey, ez, lx, ly, lz,
         e.x - hw, e.y - 0.1, e.z - hw, e.x + hw, e.y + e.height + 0.1, e.z + hw)
@@ -494,7 +506,7 @@ local function projectileHit(game, a)
     if t and t >= 0 and t <= len and t / len < bestT then best, bestT = e, t / len end
   end
   for _, e in ipairs(game.entities.list) do
-    if e.isMob and not e.dead and e.health > 0 and e ~= a.shooter then test(e) end
+    if (e.isMob and not e.dead and e.health > 0 and e ~= a.shooter) or (e.isCrystal and not e.dead) then test(e) end
   end
   if a.shooter ~= game.player and not game.dead then test(game.player) end
   return best, bestT
@@ -545,7 +557,9 @@ entities.TICK.arrow = function(game, a)
     local speed = sqrt(a.vx * a.vx + a.vy * a.vy + a.vz * a.vz)
     local dmg = math.ceil(speed * a.damage)
     if a.crit then dmg = dmg + game.rng:int(0, floor(dmg / 2) + 1) end
-    if what == game.player then
+    if what.isCrystal then
+      require("core.dragon").destroyCrystal(game, what)
+    elseif what == game.player then
       game.survival.damage(game, dmg, "arrow", a.shooter)
     else
       M.damageMob(game, what, dmg, "arrow", { x = a.x - a.vx, z = a.z - a.vz,
@@ -1021,6 +1035,10 @@ entities.TICK.mob = function(game, e)
   if e.swing and e.swing > 0 then e.swing = e.swing - 1 end
   if e.lastHitByPlayer and e.lastHitByPlayer > 0 then e.lastHitByPlayer = e.lastHitByPlayer - 1 end
 
+  if e.deathTime > 0 and e.kind == "dragon" then
+    require("core.dragon").dying(game, e)
+    return
+  end
   if e.deathTime > 0 then
     e.deathTime = e.deathTime + 1
     if e.deathTime >= 20 then
@@ -1077,7 +1095,7 @@ entities.TICK.mob = function(game, e)
       e.dead = true
     end
   end
-  if game.difficulty == 0 and d.hostile then e.dead = true end
+  if game.difficulty == 0 and d.hostile and not d.boss then e.dead = true end
 end
 
 -- ---------------------------------------------------------------------------
@@ -1257,6 +1275,7 @@ local function trySpawnHostile(game)
   local nether = game.dimension == "nether"
   if not nether and game:lightAt(x, y, z) > 7 then return end
   local kind = HOSTILE_KINDS[rng:int(1, #HOSTILE_KINDS)]
+  if game.dimension == "end" then kind = "enderman" end
   if nether then
     kind = NETHER_KINDS[rng:int(1, #NETHER_KINDS)]
     if kind == "ghast" then
@@ -1269,7 +1288,7 @@ local function trySpawnHostile(game)
       return
     end
   end
-  if kind == "enderman" and rng:chance(0.7) then kind = "zombie" end
+  if kind == "enderman" and rng:chance(0.7) and game.dimension ~= "end" then kind = "zombie" end
   local d = DEFS[kind]
   local group = rng:int(1, kind == "enderman" and 1 or 3)
   for _ = 1, group do

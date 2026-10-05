@@ -450,7 +450,8 @@ function Server:spawnFromClient(ctx, s)
     e.stack = { id = s.stack.id, count = math.max(1, math.min(64, s.stack.count or 1)),
       damage = s.stack.damage or 0, ench = type(s.stack.ench) == "table" and s.stack.ench or nil }
     e.pickupDelay = math.max(e.pickupDelay or 10, 10)
-  elseif s.type == "arrow" or s.type == "snowball" or s.type == "egg" or s.type == "pearl" then
+  elseif s.type == "arrow" or s.type == "snowball" or s.type == "egg" or s.type == "pearl"
+    or s.type == "potion" then
     e.shooter = ctx.player
   elseif s.type == "falling" and not blocks.defs[s.block or -1] then
     return

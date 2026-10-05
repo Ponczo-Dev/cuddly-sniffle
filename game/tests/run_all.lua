@@ -25,6 +25,7 @@ local files = {
   "test_nether",
   "test_net",
   "test_magic",
+  "test_end",
 }
 
 local jit = rawget(_G, "jit")

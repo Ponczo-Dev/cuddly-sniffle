@@ -462,7 +462,7 @@ function M.drawMob(e, alpha, light, time)
   local scale = (e.growth and e.growth < 0) and 0.5 or 1
   if e.modelScale then scale = scale * e.modelScale end
   local roll = 0
-  if e.deathTime and e.deathTime > 0 then
+  if e.deathTime and e.deathTime > 0 and e.kind ~= "dragon" then
     roll = math.min(1, (e.deathTime + alpha) / 20) * math.pi / 2
   end
   if e.kind == "creeper" and e.fuse and e.fuse > 0 then

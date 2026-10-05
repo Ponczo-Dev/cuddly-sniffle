@@ -131,7 +131,7 @@ function M.decodeChunk(cx, cz, data)
 end
 
 local function chunkPath(folder, cx, cz, dim)
-  local sub = (dim == "nether") and "/nether/chunks/" or "/chunks/"
+  local sub = (dim == "nether") and "/nether/chunks/" or (dim == "end" and "/end/chunks/" or "/chunks/")
   return "worlds/" .. folder .. sub .. cx .. "." .. cz .. ".dat"
 end
 
@@ -200,6 +200,7 @@ end
 -- Zapis i odczyt stanu gry
 -- ---------------------------------------------------------------------------
 local function serializeEntity(e)
+  if e.type == "mob" and e.kind == "dragon" then return nil end
   if e.type == "mob" and not e.dead and e.health > 0 then
     return { t = "mob", kind = e.kind, x = e.x, y = e.y, z = e.z, yaw = e.yaw, health = e.health,
       tamed = e.tamed, sheared = e.sheared, color = e.color, growth = e.growth, sitting = e.sitting,

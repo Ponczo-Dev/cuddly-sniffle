@@ -101,6 +101,10 @@ function Game:makeWorld(dim)
     local nethergen = require("core.nethergen")
     local gen = nethergen.new(self.seed)
     generator = function(chunk) gen:generate(chunk) end
+  elseif dim == "end" then
+    local gen = require("core.endgen").new(self.seed)
+    self.endGen = gen
+    generator = function(chunk) gen:generate(chunk) end
   else
     generator = opts.generator
     if opts.remote then
@@ -144,7 +148,7 @@ function Game:makeWorld(dim)
     loader = loader, onUnload = onUnload, onCreate = onCreate,
   })
   w.dimension = dim
-  if dim == "nether" then w.noSky = true end
+  if dim == "nether" or dim == "end" then w.noSky = true end
   return w
 end
 
@@ -164,6 +168,9 @@ function Game:setDimension(dim)
   if dim == "nether" then
     local nb = require("core.nethergen").BIOME
     self.biomeAt = function() return nb end
+  elseif dim == "end" then
+    local eb = require("core.endgen").BIOME
+    self.biomeAt = function() return eb end
   else
     self.biomeAt = self.overworldBiome
   end
@@ -176,6 +183,7 @@ function Game:changeDimension(dim, x, y, z)
   old:unloadFar(0, 0, -1)
   for _, e in ipairs(self.entities.list) do e.dead = true end
   self.entities.list = {}
+  self.endDragon, self.endCrystals = nil, nil
   self.scheduled, self.scheduledSet = {}, {}
   self.mining = nil
   self:setDimension(dim)
@@ -906,7 +914,7 @@ end
 -- ---------------------------------------------------------------------------
 -- Jasność nieba 0..1 (jak w MC: najciemniej w nocy 0.2 * 15 = ~4)
 function Game:daylight()
-  if self.dimension == "nether" then return 0.2 end
+  if self.dimension == "nether" or self.dimension == "end" then return 0.2 end
   local t = (self.dayTime % M.DAY_LENGTH) / M.DAY_LENGTH -- 0 = wschód (6:00)
   -- kąt słońca: 0 w południe
   local angle = t - 0.25
@@ -1085,7 +1093,10 @@ function Game:tick()
       p:tick(self.world, self.survival.canSprint(self))
     end
     self:tickInteraction()
-    if not remote then require("core.portal").tick(self) end
+    if not remote then
+      require("core.portal").tick(self)
+      require("core.endportal").tick(self)
+    end
     maps.tick(self)
   end
 
@@ -1107,6 +1118,7 @@ function Game:tick()
     if e.onGround and not e.dead and (e.isMob or e.type == "item") then redstone.checkPlate(self, e) end
   end
   if self.mobs then self.mobs.tick(self) end
+  if self.dimension == "end" then require("core.dragon").tick(self) end
   self:processScheduled()
   self:randomTicks()
   self:tickWeather()

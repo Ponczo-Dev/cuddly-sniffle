@@ -1,5 +1,8 @@
 -- core/structures.lua
--- Struktury z Beta 1.8, sięgające przez wiele chunków:
+-- Struktury z Beta 1.8 / 1.0, sięgające przez wiele chunków:
+--  * twierdze (3 na świat, 400-700 bloków od środka): korytarze z kamiennych
+--    cegieł, biblioteka, fontanna, cele z kratami, skrzynie i sala
+--    z portalem do Endu nad jeziorkiem lawy,
 --  * opuszczone kopalnie: korytarze z drewnianymi podporami, tory,
 --    pajęczyny, skrzynie ze skarbami, centralna komora,
 --  * wioski (puste, jak w Beta 1.8): studnia, drogi ze żwiru, domy,
@@ -19,6 +22,7 @@ local COBWEB, FENCE, RAIL, CHEST, TORCH = 30, 85, 66, 54, 50
 local FARMLAND, WHEAT, FURNACE, BOOKSHELF, DOOR = 60, 59, 61, 47, 64
 local SLAB, GRASS, SAND, SANDSTONE, WOOL = 44, 2, 12, 24, 35
 local CRAFTING = 58
+local GLOWSTONE_BLOCK = 89
 
 -- ---------------------------------------------------------------------------
 -- Rysowanie z przycinaniem do chunka
@@ -382,6 +386,363 @@ local function drawVillage(canvas, pieces)
 end
 
 -- ---------------------------------------------------------------------------
+-- Twierdza
+-- ---------------------------------------------------------------------------
+local BRICK, BRICK_MOSSY, BRICK_CRACKED, IRON_BARS = 98, 97, 99, 101
+local FRAME, SPAWNER = 120, 52
+
+local SH_LOOT = {
+  { 368, 1, 1 }, { 265, 1, 5 }, { 266, 1, 3 }, { 331, 4, 9 }, { 297, 1, 3 }, { 260, 1, 3 },
+  { 257, 1, 1 }, { 267, 1, 1 }, { 307, 1, 1 }, { 306, 1, 1 }, { 309, 1, 1 }, { 322, 1, 1 },
+}
+local LIBRARY_LOOT = { { 339, 1, 3 }, { 340, 1, 3 }, { 345, 1, 1 }, { 395, 1, 1 }, { 340, 2, 5 } }
+
+M.STRONGHOLD_COUNT = 3
+M.STRONGHOLD_MIN, M.STRONGHOLD_MAX = 25, 44 -- odległość w chunkach
+
+-- Pozycje (chunk) trzech twierdz w pierścieniu wokół środka świata
+function M.strongholdPositions(seed)
+  local rng = Rng.new(Rng.hash(seed, 7, 7, 1907))
+  local a0 = rng:next() * math.pi * 2
+  local list = {}
+  for i = 0, M.STRONGHOLD_COUNT - 1 do
+    local a = a0 + i * math.pi * 2 / M.STRONGHOLD_COUNT
+    local d = rng:int(M.STRONGHOLD_MIN, M.STRONGHOLD_MAX)
+    list[#list + 1] = { floor(math.cos(a) * d + 0.5), floor(math.sin(a) * d + 0.5) }
+  end
+  return list
+end
+
+-- Prostopadłościan pomieszczenia o długości L (wzdłuż d) i szerokości W, drzwi na środku ściany
+local function roomBox(x, y, z, d, L, W, H)
+  local hw = floor(W / 2)
+  if d[1] > 0 then return { x, y, z - hw, x + L - 1, y + H - 1, z + hw } end
+  if d[1] < 0 then return { x - L + 1, y, z - hw, x, y + H - 1, z + hw } end
+  if d[2] > 0 then return { x - hw, y, z, x + hw, y + H - 1, z + L - 1 } end
+  return { x - hw, y, z - L + 1, x + hw, y + H - 1, z }
+end
+
+local function boxesClash(a, b)
+  -- kolizja wnętrz (ściany mogą być wspólne)
+  return a[1] + 1 <= b[4] - 1 and a[4] - 1 >= b[1] + 1 and a[2] + 1 <= b[5] - 1 and a[5] - 1 >= b[2] + 1
+    and a[3] + 1 <= b[6] - 1 and a[6] - 1 >= b[3] + 1
+end
+
+local ROOMS = {
+  library = { L = 14, W = 13, H = 8 }, fountain = { L = 9, W = 9, H = 7 },
+  prison = { L = 11, W = 9, H = 5 }, chestroom = { L = 7, W = 7, H = 5 },
+  crossing = { L = 7, W = 7, H = 6 }, portal = { L = 16, W = 11, H = 8 },
+}
+
+local function strongholdPlan(seed, sx, sz)
+  local rng = Rng.new(Rng.hash(seed, sx, sz, 5150))
+  local cx, cz = sx * 16 + 8, sz * 16 + 8
+  local y = rng:int(16, 26)
+  local pieces = {}
+  local function free(box)
+    for _, p in ipairs(pieces) do if boxesClash(box, p.box) then return false end end
+    return true
+  end
+  local function add(kind, box, d, extra)
+    local p = { kind = kind, box = box, dir = d, seed = rng:int(1, 1000000) }
+    for k, v in pairs(extra or {}) do p[k] = v end
+    pieces[#pieces + 1] = p
+    return p
+  end
+  add("start", { cx - 4, y, cz - 4, cx + 4, y + 6, cz + 4 })
+  local DIRS = { { 1, 0 }, { -1, 0 }, { 0, 1 }, { 0, -1 } }
+  local function exitOf(box, d)
+    -- środek ściany w kierunku d
+    local mx, mz = floor((box[1] + box[4]) / 2), floor((box[3] + box[6]) / 2)
+    if d[1] > 0 then return box[4], mz end
+    if d[1] < 0 then return box[1], mz end
+    if d[2] > 0 then return mx, box[6] end
+    return mx, box[3]
+  end
+  -- sala z portalem: zawsze, w losowym kierunku od startu
+  local pd = DIRS[rng:int(1, 4)]
+  local ex, ez = exitOf(pieces[1].box, pd)
+  local clen = rng:int(10, 16)
+  local cbox = roomBox(ex, y, ez, pd, clen, 5, 5)
+  add("corridor", cbox, pd)
+  local px, pz = ex + pd[1] * (clen - 1), ez + pd[2] * (clen - 1)
+  local R = ROOMS.portal
+  local portal = add("portal", roomBox(px, y, pz, pd, R.L, R.W, R.H), pd)
+  -- pozostałe gałęzie
+  local queue = {}
+  for _, d in ipairs(DIRS) do
+    if d ~= pd then
+      local qx, qz = exitOf(pieces[1].box, d)
+      queue[#queue + 1] = { qx, qz, d, 0 }
+    end
+  end
+  local kinds = { "library", "fountain", "prison", "chestroom", "crossing", "crossing" }
+  local count = 0
+  while #queue > 0 and count < 24 do
+    local q = table.remove(queue, 1)
+    local x, z, d, depth = q[1], q[2], q[3], q[4]
+    local len = rng:int(6, 14)
+    local box = roomBox(x, y, z, d, len, 5, 5)
+    if free(box) then
+      add("corridor", box, d, { webs = rng:chance(0.3) })
+      count = count + 1
+      local rx, rz = x + d[1] * (len - 1), z + d[2] * (len - 1)
+      local kind = kinds[rng:int(1, #kinds)]
+      local r = ROOMS[kind]
+      local rb = roomBox(rx, y, rz, d, r.L, r.W, r.H)
+      if free(rb) then
+        local room = add(kind, rb, d)
+        count = count + 1
+        if depth < 3 then
+          local left, right = { -d[2], d[1] }, { d[2], -d[1] }
+          for _, nd in ipairs({ d, left, right }) do
+            if rng:chance(kind == "crossing" and 0.85 or 0.45) then
+              local nx, nz = exitOf(room.box, nd)
+              queue[#queue + 1] = { nx, nz, nd, depth + 1 }
+            end
+          end
+        end
+      end
+    end
+  end
+  -- środek pierścienia ramek (cel oka Endu)
+  local function local2world(p, u, v)
+    local b, d = p.box, p.dir
+    if d[1] > 0 then return b[1] + v, b[3] + u end
+    if d[1] < 0 then return b[4] - v, b[6] - u end
+    if d[2] > 0 then return b[4] - u, b[3] + v end
+    return b[1] + u, b[6] - v
+  end
+  local fx, fz = local2world(portal, 5, 11)
+  return pieces, { fx, y + 3, fz }
+end
+M.strongholdPlan = strongholdPlan
+
+-- Czy komórka leży we wnętrzu któregoś elementu (np. wycięte drzwi)
+local function carvedBy(pieces, x, y, z)
+  for _, p in ipairs(pieces) do
+    local b = p.box
+    if p.kind == "corridor" then
+      local d = p.dir
+      local ax0, ax1, az0, az1 = b[1] + 1, b[4] - 1, b[3] + 1, b[6] - 1
+      if d[1] ~= 0 then ax0, ax1 = b[1], b[4] else az0, az1 = b[3], b[6] end
+      if x >= ax0 and x <= ax1 and z >= az0 and z <= az1 and y > b[2] and y < b[5] then return true end
+    elseif x > b[1] and x < b[4] and z > b[3] and z < b[6] and y > b[2] and y < b[5] then
+      return true
+    end
+  end
+  return false
+end
+
+local function brickAt(x, y, z, seed)
+  local h = Rng.hash(seed, x, y, z) % 100
+  if h < 14 then return BRICK_MOSSY end
+  if h < 24 then return BRICK_CRACKED end
+  return BRICK
+end
+
+-- Pochodnia przy ścianie: meta zależnie od strony podpory
+local function torchMeta(dx, dz)
+  if dx < 0 then return 1 elseif dx > 0 then return 2 elseif dz < 0 then return 3 end
+  return 4
+end
+
+local function drawStronghold(canvas, pieces, seed)
+  local any = false
+  for _, p in ipairs(pieces) do
+    if overlaps(canvas, p.box) then any = true break end
+  end
+  if not any then return end
+  -- 1) ściany
+  for _, p in ipairs(pieces) do
+    local b = p.box
+    if overlaps(canvas, b) then
+      for x = max(b[1], canvas.x0), min(b[4], canvas.x0 + 15) do
+        for z = max(b[3], canvas.z0), min(b[6], canvas.z0 + 15) do
+          for y = b[2], b[5] do canvas:set(x, y, z, brickAt(x, y, z, seed)) end
+        end
+      end
+    end
+  end
+  -- 2) wnętrza (korytarze przebijają ściany sal = drzwi)
+  for _, p in ipairs(pieces) do
+    local b = p.box
+    if overlaps(canvas, b) then
+      for x = max(b[1], canvas.x0), min(b[4], canvas.x0 + 15) do
+        for z = max(b[3], canvas.z0), min(b[6], canvas.z0 + 15) do
+          for y = b[2] + 1, b[5] - 1 do
+            if carvedBy({ p }, x, y, z) then canvas:set(x, y, z, AIR) end
+          end
+        end
+      end
+    end
+  end
+  -- 3) wyposażenie
+  for _, p in ipairs(pieces) do
+    local b = p.box
+    if overlaps(canvas, b) then
+      local rng = Rng.new(p.seed)
+      local d = p.dir or { 1, 0 }
+      local function L2W(u, v)
+        if d[1] > 0 then return b[1] + v, b[3] + u end
+        if d[1] < 0 then return b[4] - v, b[6] - u end
+        if d[2] > 0 then return b[4] - u, b[3] + v end
+        return b[1] + u, b[6] - v
+      end
+      local W = (d[1] ~= 0) and (b[6] - b[3] + 1) or (b[4] - b[1] + 1)
+      local Ln = (d[1] ~= 0) and (b[4] - b[1] + 1) or (b[6] - b[3] + 1)
+      local y0 = b[2]
+      -- przy ścianie bocznej (u = 1 lub W-2), jeśli ściana nie jest przebita
+      local function wallTorch(u, v, y)
+        local x, z = L2W(u, v)
+        local wu = u == 1 and 0 or W - 1
+        local wx, wz = L2W(wu, v)
+        if not carvedBy(pieces, wx, y, wz) then canvas:set(x, y, z, TORCH, torchMeta(wx - x, wz - z)) end
+      end
+      if p.kind == "corridor" then
+        for v = 3, Ln - 2, 6 do
+          if rng:chance(0.5) then wallTorch(rng:chance(0.5) and 1 or W - 2, v, y0 + 2) end
+        end
+        if p.webs then
+          for _ = 1, 3 do
+            local x, z = L2W(rng:int(1, W - 2), rng:int(1, Ln - 2))
+            canvas:set(x, y0 + 3, z, COBWEB)
+          end
+        end
+      elseif p.kind == "start" then
+        canvas:fill(b[1] + 4, y0 + 1, b[3] + 4, b[1] + 4, y0 + 5, b[3] + 4, BRICK)
+        for _, o in ipairs({ { 1, 0 }, { -1, 0 }, { 0, 1 }, { 0, -1 } }) do
+          canvas:set(b[1] + 4 + o[1], y0 + 3, b[3] + 4 + o[2], TORCH, torchMeta(-o[1], -o[2]))
+        end
+      elseif p.kind == "library" then
+        for v = 1, Ln - 2 do
+          for _, u in ipairs({ 1, W - 2 }) do
+            local wx, wz = L2W(u == 1 and 0 or W - 1, v)
+            for y = y0 + 1, y0 + 5 do
+              if not carvedBy(pieces, wx, y, wz) or y > y0 + 3 then
+                local x, z = L2W(u, v)
+                canvas:set(x, y, z, BOOKSHELF)
+              end
+            end
+          end
+        end
+        for u = 2, W - 3 do
+          local wx, wz = L2W(u, Ln - 1)
+          for y = y0 + 1, y0 + 5 do
+            if not carvedBy(pieces, wx, y, wz) or y > y0 + 3 then
+              local x, z = L2W(u, Ln - 2)
+              canvas:set(x, y, z, BOOKSHELF)
+            end
+          end
+        end
+        -- regały w środku
+        for _, u in ipairs({ 4, W - 5 }) do
+          for v = 3, Ln - 5 do
+            local x, z = L2W(u, v)
+            canvas:fill(x, y0 + 1, z, x, y0 + 3, z, BOOKSHELF)
+          end
+        end
+        for _ = 1, 8 do
+          local x, z = L2W(rng:int(2, W - 3), rng:int(2, Ln - 3))
+          canvas:set(x, y0 + rng:int(4, 6), z, COBWEB)
+        end
+        local cx, cz = L2W(floor(W / 2), Ln - 3)
+        canvas:chest(cx, y0 + 1, cz, 0, LIBRARY_LOOT, rng)
+        -- żyrandol z płotków
+        local mx, mz = L2W(floor(W / 2), floor(Ln / 2))
+        canvas:fill(mx, y0 + 5, mz, mx, y0 + 6, mz, FENCE)
+        canvas:set(mx, y0 + 4, mz, GLOWSTONE_BLOCK)
+      elseif p.kind == "fountain" then
+        local mx, mz = L2W(floor(W / 2), floor(Ln / 2))
+        canvas:fill(mx, y0 + 1, mz, mx, y0 + 3, mz, BRICK)
+        canvas:set(mx, y0 + 4, mz, WATER)
+        for _, o in ipairs({ { 1, 0 }, { -1, 0 }, { 0, 1 }, { 0, -1 } }) do
+          canvas:set(mx + o[1], y0 + 1, mz + o[2], WATER)
+        end
+        wallTorch(1, 2, y0 + 3)
+        wallTorch(W - 2, Ln - 3, y0 + 3)
+      elseif p.kind == "prison" then
+        for v = 2, Ln - 3 do
+          for _, u in ipairs({ 3, W - 4 }) do
+            local x, z = L2W(u, v)
+            canvas:fill(x, y0 + 1, z, x, y0 + 3, z, IRON_BARS)
+          end
+        end
+        for _, v in ipairs({ 5, 8 }) do
+          for _, us in ipairs({ { 1, 2 }, { W - 3, W - 2 } }) do
+            for u = us[1], us[2] do
+              local x, z = L2W(u, v)
+              canvas:fill(x, y0 + 1, z, x, y0 + 3, z, BRICK)
+            end
+          end
+        end
+        wallTorch(1, 1, y0 + 2)
+      elseif p.kind == "chestroom" then
+        local x, z = L2W(floor(W / 2), Ln - 2)
+        canvas:chest(x, y0 + 1, z, 0, SH_LOOT, rng)
+        local sx, sz = L2W(floor(W / 2) - 1, Ln - 2)
+        canvas:set(sx, y0 + 1, sz, SLAB)
+        wallTorch(1, 2, y0 + 3)
+      elseif p.kind == "crossing" then
+        local mx, mz = L2W(floor(W / 2), floor(Ln / 2))
+        canvas:fill(mx, y0 + 1, mz, mx, y0 + 4, mz, BRICK)
+        canvas:set(mx + 1, y0 + 2, mz, TORCH, 1)
+        canvas:set(mx - 1, y0 + 2, mz, TORCH, 2)
+      elseif p.kind == "portal" then
+        -- jezioro lawy pod portalem
+        for u = 3, 7 do
+          for v = 9, 13 do
+            local x, z = L2W(u, v)
+            canvas:set(x, y0, z, LAVA)
+            canvas:set(x, y0 - 1, z, BRICK)
+          end
+        end
+        -- schody do platformy
+        for v = 5, 8 do
+          local h = v == 5 and 0 or (v == 6 and 1 or 2)
+          for u = 4, 6 do
+            local x, z = L2W(u, v)
+            if h > 0 then canvas:fill(x, y0 + 1, z, x, y0 + h, z, BRICK) end
+          end
+        end
+        -- ramki na filarach dookoła 3x3
+        local frames = {}
+        for v = 10, 12 do frames[#frames + 1] = { 3, v, 1 }; frames[#frames + 1] = { 7, v, 3 } end
+        for u = 4, 6 do frames[#frames + 1] = { u, 9, 0 }; frames[#frames + 1] = { u, 13, 2 } end
+        for _, f in ipairs(frames) do
+          local x, z = L2W(f[1], f[2])
+          canvas:fill(x, y0 + 1, z, x, y0 + 2, z, BRICK)
+          canvas:set(x, y0 + 3, z, FRAME, f[3] + (rng:chance(0.1) and 4 or 0))
+        end
+        -- narożniki ramy: cegły
+        for _, c in ipairs({ { 3, 9 }, { 7, 9 }, { 3, 13 }, { 7, 13 } }) do
+          local x, z = L2W(c[1], c[2])
+          canvas:fill(x, y0 + 1, z, x, y0 + 2, z, BRICK)
+        end
+        -- spawner i pochodnie
+        local sx, sz = L2W(9, 5)
+        if canvas:inside(sx, y0 + 1, sz) then
+          canvas:set(sx, y0 + 1, sz, SPAWNER)
+          canvas.chunk.tiles[(sx - canvas.x0) + (sz - canvas.z0) * 16 + (y0 + 1) * 256] =
+            { kind = "spawner", mob = "skeleton", delay = 200 }
+        end
+        for _, v in ipairs({ 3, 8, 13 }) do
+          wallTorch(1, v, y0 + 4)
+          wallTorch(W - 2, v, y0 + 4)
+        end
+        -- okna z kraty w ścianach bocznych
+        for _, v in ipairs({ 5, 11 }) do
+          for _, u in ipairs({ 0, W - 1 }) do
+            local x, z = L2W(u, v)
+            if not carvedBy(pieces, x, y0 + 3, z) then canvas:set(x, y0 + 3, z, IRON_BARS) end
+          end
+        end
+      end
+    end
+  end
+end
+
+-- ---------------------------------------------------------------------------
 -- Wywołanie z generatora świata
 -- ---------------------------------------------------------------------------
 local cache = setmetatable({}, { __mode = "v" })
@@ -415,10 +776,22 @@ function M.villageAt(gen, seed, sx, sz)
   return b.name == "Rowniny" or b.name == "Pustynia"
 end
 
+-- Plan twierdzy (z pamięci podręcznej): pieces, środek portalu
+function M.stronghold(seed, sx, sz)
+  return cached("s" .. sx .. "," .. sz, function() return strongholdPlan(seed, sx, sz) end)
+end
+
 function M.applyUnderground(gen, chunk)
   local seed = gen.seed
   local canvas = newCanvas(chunk)
   local cx, cz = chunk.cx, chunk.cz
+  -- twierdze (zasięg do ~6 chunków od środka)
+  for _, pos in ipairs(M.strongholdPositions(seed)) do
+    if abs(pos[1] - cx) <= 6 and abs(pos[2] - cz) <= 6 then
+      local pieces = M.stronghold(seed, pos[1], pos[2])
+      drawStronghold(canvas, pieces, seed)
+    end
+  end
   -- kopalnie (zasięg do ~7 chunków od startu)
   for sz = cz - 7, cz + 7 do
     for sx = cx - 7, cx + 7 do
@@ -455,6 +828,17 @@ function M.findVillage(gen, fromCx, fromCz, radius)
         if not best or d < bestD then best, bestD = { sx * 16 + 8, sz * 16 + 8 }, d end
       end
     end
+  end
+  return best
+end
+
+-- Najbliższa twierdza: współrzędne środka sali z portalem
+function M.findStronghold(seed, x, z)
+  local best, bestD
+  for _, pos in ipairs(M.strongholdPositions(seed)) do
+    local _, portal = M.stronghold(seed, pos[1], pos[2])
+    local d = (portal[1] - x) ^ 2 + (portal[3] - z) ^ 2
+    if not best or d < bestD then best, bestD = portal, d end
   end
   return best
 end

@@ -33,7 +33,7 @@ local HELP = {
   "/tp <x> <y> <z>, /spawnpoint, /seed, /kill, /heal, /clear",
   "/weather clear|rain|thunder, /difficulty 0-3",
   "/summon <pig|cow|sheep|chicken|wolf|zombie|skeleton|spider|creeper|enderman>",
-  "/xp <ilosc>, /locate village|mineshaft, /list (gracze w sieci)",
+  "/xp <ilosc>, /locate village|mineshaft|stronghold, /list (gracze w sieci)",
 }
 
 -- komendy zmieniające wspólny świat - u gościa niedostępne
@@ -138,7 +138,14 @@ function M.run(game, text)
     local pos
     if what == "village" or what == "wioska" then pos = structures.findVillage(game.gen, pcx, pcz, 60)
     elseif what == "mineshaft" or what == "kopalnia" then pos = structures.findMineshaft(game.gen, pcx, pcz, 40)
-    else return "Uzycie: /locate village|mineshaft" end
+    elseif what == "stronghold" or what == "twierdza" then
+      local s = structures.findStronghold(game.seed, p.x, p.z)
+      pos = s and { s[1], s[3] }
+      if s then
+        return string.format("Twierdza (portal Endu): x=%d y=%d z=%d (odleglosc %d)", s[1], s[2], s[3],
+          math.floor(math.sqrt((s[1] - p.x) ^ 2 + (s[3] - p.z) ^ 2)))
+      end
+    else return "Uzycie: /locate village|mineshaft|stronghold" end
     if not pos then return "Nie znaleziono w poblizu" end
     return string.format("Najblizej: x=%d z=%d (odleglosc %d)", pos[1], pos[2],
       math.floor(math.sqrt((pos[1] - p.x) ^ 2 + (pos[2] - p.z) ^ 2)))

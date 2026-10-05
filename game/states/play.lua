@@ -605,8 +605,8 @@ function Play:handleEvents()
       self.renderer = ChunkRenderer.new(game.world, atlas.image)
       particles.clear()
       sound.setRain(0)
-      hud.message(ev[2] == "nether" and "Wszedles do Netheru" or "Wrociles do zwyklego swiata",
-        { 1, 0.6, 0.6 })
+      local msg = ({ nether = "Wszedles do Netheru", ["end"] = "Wszedles do Endu" })[ev[2]]
+      hud.message(msg or "Wrociles do zwyklego swiata", { 1, 0.6, 0.6 })
     end
   end
 end
@@ -718,6 +718,7 @@ function Play:entityLight(x, y, z)
   local l = math.max(sl * game:daylight(), bl) / 15
   local b = brightness(l)
   if game.dimension == "nether" and b < 0.32 then b = 0.32 end
+  if game.dimension == "end" and b < 0.5 then b = 0.5 end
   return b
 end
 
@@ -754,7 +755,9 @@ function Play:drawEntities(alpha)
           y + (e.height or 1) + 0.5, z + hw) then
           local light = self:entityLight(x, y + (e.height or 0.5) * 0.5, z)
           if e.type == "mob" or e.type == "player" then
-            models.drawMob(e, alpha, light, time)
+            models.drawMob(e, alpha, e.kind == "dragon" and math.max(light, 0.8) or light, time)
+          elseif e.type == "crystal" then
+            models.drawMob(e, alpha, 1, time)
           elseif e.type == "item" then
             if e.stack.ench then s:send("u_glint", 0.6); s:send("u_time", time) end
             models.drawItem(e, alpha, light, time, cam.yaw)
@@ -952,13 +955,21 @@ function Play:draw(alpha)
     fogEnd = fogEnd * (1 - game.weather.strength * 0.25)
   end
   local nether = game.dimension == "nether"
+  local theEnd = game.dimension == "end"
   if nether then
     skyColor = { 0.22, 0.03, 0.02 }
     fogColor = skyColor
     fogEnd = math.min(fogEnd, 80)
     fogStart = fogEnd * 0.2
+  elseif theEnd then
+    skyColor = { 0.05, 0.035, 0.08 }
+    fogColor = { 0.09, 0.07, 0.12 }
+    fogEnd = math.min(fogEnd, 170)
+    fogStart = fogEnd * 0.45
   end
-  shader.chunk:send("u_ambient", nether and 0.32 or 0)
+  shader.chunk:send("u_ambient", theEnd and 0.5 or (nether and 0.32 or 0))
+  -- w Netherze i Endzie nie ma słońca, chmur ani pogody
+  nether = nether or theEnd
   local underwater = physics.pointInLiquid(game.world, cam.x, cam.y, cam.z, "water")
   local inLava = physics.pointInLiquid(game.world, cam.x, cam.y, cam.z, "lava")
   if underwater then

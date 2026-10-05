@@ -77,6 +77,8 @@ function M.entityState(e)
     x.b, x.m = e.block, e.meta
   elseif t == "tnt" then
     x.f = e.fuse
+  elseif t == "potion" then
+    x.p = e.potion
   elseif t == "arrow" then
     x.vx, x.vy, x.vz = q(e.vx), q(e.vy), q(e.vz)
     if e.stuck then x.sk = true end
@@ -98,7 +100,7 @@ end
 -- Kopiujemy proste pola; referencje (np. strzelec) uzupełnia serwer.
 -- ---------------------------------------------------------------------------
 local SPAWNABLE = { item = true, xp = true, tnt = true, arrow = true, snowball = true,
-  egg = true, pearl = true, minecart = true, boat = true, falling = true }
+  egg = true, pearl = true, minecart = true, boat = true, falling = true, potion = true, eye = true }
 M.SPAWNABLE = SPAWNABLE
 
 function M.entitySpawn(e)

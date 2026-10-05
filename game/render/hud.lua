@@ -106,6 +106,19 @@ function M.draw(game, alpha, opts)
     g.setColor(1, 1, 1, 1)
   end
 
+  -- pasek życia smoka Endu
+  local dragon = game.endDragon
+  if dragon and not dragon.dead and game.dimension == "end" then
+    local bw = 182 * s
+    local bx, by = w / 2 - bw / 2, 14 * s
+    gui.text("Smok Endu", 0, 3 * s, { 1, 0.6, 1 }, 1, "center", w)
+    g.setColor(0.25, 0.05, 0.25, 1)
+    g.rectangle("fill", bx, by, bw, 5 * s)
+    g.setColor(0.95, 0.35, 0.95, 1)
+    g.rectangle("fill", bx, by, bw * math.max(0, dragon.health) / (dragon.maxHealth or 200), 5 * s)
+    g.setColor(1, 1, 1, 1)
+  end
+
   -- aktywne efekty mikstur (prawy górny róg)
   local fx = game.effects
   if fx and next(fx) then

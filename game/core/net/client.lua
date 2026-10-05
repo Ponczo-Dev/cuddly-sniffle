@@ -148,6 +148,8 @@ local function applyState(e, s, x, fresh)
     e.block, e.meta = x.b, x.m
   elseif t == "tnt" then
     e.fuse = x.f or 80
+  elseif t == "potion" then
+    e.potion = x.p or 0
   elseif t == "arrow" then
     e.vx, e.vy, e.vz = dq(x.vx), dq(x.vy), dq(x.vz)
     e.stuck = x.sk

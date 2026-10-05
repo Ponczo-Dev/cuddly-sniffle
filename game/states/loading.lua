@@ -56,7 +56,8 @@ function Loading:start()
     self.game = Game.new({ seed = data.seed, name = data.name, gameMode = data.gameMode,
       difficulty = data.difficulty, hardcore = data.hardcore, saveFolder = p.folder })
     save.applyLevel(self.game, data)
-    if self.game.savedDimension == "nether" then self.game:setDimension("nether") end
+    local dim = self.game.savedDimension
+    if dim == "nether" or dim == "end" then self.game:setDimension(dim) end
     self.isNew = false
     self.spawnX, self.spawnZ = math.floor(self.game.player.x), math.floor(self.game.player.z)
     self.message = "Wczytywanie swiata..."
