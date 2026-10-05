@@ -1,0 +1,6 @@
+Tutaj skopiuj swoj lua.exe (oraz plik .dll, jesli lezy obok, np. lua54.dll).
+
+Uzywamy go tylko do testow logiki gry: test.bat w glownym folderze projektu.
+Sama gra dziala w LOVE (folder "love").
+
+Pliki z tego folderu nie sa wysylane do repozytorium (.gitignore).

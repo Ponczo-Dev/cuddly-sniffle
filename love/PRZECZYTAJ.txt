@@ -1,0 +1,11 @@
+Tutaj rozpakuj LOVE 11.5 w wersji portable (bez instalacji, bez admina).
+
+1. Pobierz ze strony https://love2d.org plik "64-bit zipped" dla Windows:
+   love-11.5-win64.zip
+2. Rozpakuj ZAWARTOSC zipa do tego folderu, tak zeby tu lezal love.exe
+   (podfolder love-11.5-win64 tez zadziala).
+3. Jesli Windows blokuje plik: prawy klik na ZIP przed rozpakowaniem
+   -> Wlasciwosci -> zaznacz "Odblokuj" -> OK.
+4. Uruchom gre przez run.bat w glownym folderze projektu.
+
+Pliki LOVE nie sa wysylane do repozytorium (.gitignore).

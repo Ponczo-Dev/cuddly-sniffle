@@ -1,0 +1,5 @@
+# Pliki .bat i .txt dla Windows: zapisane z koncami linii CRLF, bez konwersji
+*.bat -text
+*.txt -text
+*.lua text eol=lf
+*.md text eol=lf
